@@ -3,6 +3,7 @@ import swisseph as swe
 from datetime import datetime, timezone
 
 app = Flask(__name__)
+app.json.ensure_ascii = False  # so degree symbols (°) show as-is, not as \u00b0 escapes
 
 
 @app.route("/", methods=["GET"])
