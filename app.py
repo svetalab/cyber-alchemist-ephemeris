@@ -4,6 +4,12 @@ from datetime import datetime, timezone
 
 app = Flask(__name__)
 
+
+@app.route("/", methods=["GET"])
+def health_check():
+    """Simple check so we can confirm in a browser that the service is alive."""
+    return jsonify({"status": "Cyber-Alchemist ephemeris service is running"})
+
 # Planets we care about, mapped to their Swiss Ephemeris codes
 PLANETS = {
     "sun": swe.SUN,
