@@ -38,8 +38,23 @@ def degree_to_sign(longitude):
     degree_in_sign = longitude % 30
     return {
         "sign": ZODIAC_SIGNS[sign_index],
-        "degree": round(degree_in_sign, 2)
+        "degree": round(degree_in_sign, 2),
+        "degree_display": format_dms(degree_in_sign)
     }
+
+
+def format_dms(decimal_degree):
+    """
+    Converts a decimal degree (e.g. 28.83) into the classic
+    astrology degree-minute format (e.g. "28°50'") that users
+    and astrologers actually recognize.
+    """
+    whole_degrees = int(decimal_degree)
+    minutes = round((decimal_degree - whole_degrees) * 60)
+    if minutes == 60:  # rounding edge case, e.g. 28.999 -> 29°00'
+        whole_degrees += 1
+        minutes = 0
+    return f"{whole_degrees}°{minutes:02d}'"
 
 
 def to_julian_day(year, month, day, hour, minute, utc_offset_hours):
@@ -61,7 +76,7 @@ def calculate_planets(julian_day):
     """
     positions = {}
     for name, code in PLANETS.items():
-        result, _ = swe.calc_ut(julian_day, code, swe.FLG_MOSEPH)
+        result, _ = swe.calc_ut(julian_day, code, swe.FLG_MOSEPH | swe.FLG_SPEED)
         longitude = result[0]
         is_retrograde = result[3] < 0  # negative daily speed = retrograde
         sign_info = degree_to_sign(longitude)
