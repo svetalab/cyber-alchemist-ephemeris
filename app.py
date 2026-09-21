@@ -150,5 +150,18 @@ def transits():
     return jsonify({"planets": planets})
 
 
+@app.route("/test-transits", methods=["GET"])
+def test_transits():
+    """
+    Temporary browser-friendly test route - shows current planetary
+    positions right now, no POST request needed. Useful for a quick
+    sanity check straight from a browser address bar.
+    """
+    now = datetime.now(timezone.utc)
+    jd = swe.julday(now.year, now.month, now.day, now.hour + now.minute / 60.0)
+    planets = calculate_planets(jd)
+    return jsonify({"checked_at_utc": now.isoformat(), "planets": planets})
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
