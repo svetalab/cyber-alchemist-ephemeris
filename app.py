@@ -84,6 +84,7 @@ def calculate_planets(julian_day):
             "longitude": round(longitude, 4),
             "sign": sign_info["sign"],
             "degree_in_sign": sign_info["degree"],
+            "degree_display": sign_info["degree_display"],
             "retrograde": is_retrograde
         }
     return positions
