@@ -22,8 +22,8 @@ PLANETS = {
     "uranus": swe.URANUS,
     "neptune": swe.NEPTUNE,
     "pluto": swe.PLUTO,
-    "chiron": swe.CHIRON,
     "lilith": swe.MEAN_APOG,  # Black Moon Lilith (mean lunar apogee point)
+    # "chiron": swe.CHIRON,  # temporarily disabled - needs seas_18.se1 ephemeris file, adding separately
 }
 
 ZODIAC_SIGNS = [
