@@ -2,12 +2,9 @@ from flask import Flask, request, jsonify
 import swisseph as swe
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
-from timezonefinder import TimezoneFinder
 
 app = Flask(__name__)
 app.json.ensure_ascii = False  # so degree symbols (°) show as-is, not as \u00b0 escapes
-
-tf = TimezoneFinder()
 
 
 @app.route("/", methods=["GET"])
@@ -76,23 +73,20 @@ def to_julian_day(year, month, day, hour, minute, utc_offset_hours):
     return swe.julday(year, month, day, utc_hour_decimal)
 
 
-def local_time_to_julian_day(year, month, day, hour, minute, latitude, longitude):
+def local_time_to_julian_day(year, month, day, hour, minute, timezone_name):
     """
-    For natal charts: figures out the correct historical UTC offset
-    automatically from the birth coordinates, using the same worldwide
-    timezone database phones and computers use - including historical
-    rules like Soviet-era decree time, old DST changes, etc. This means
-    Make never has to send us a manually guessed utc_offset for births.
-    Returns both the Julian Day and the resolved timezone name (useful
-    to double-check against, e.g., astro.com).
+    For natal charts: converts a birth date/time in its own local
+    timezone into UTC using Python's built-in historical timezone
+    database (zoneinfo) - this correctly handles old DST rules,
+    Soviet-era decree time, etc. automatically, as long as we're told
+    which IANA timezone name applies (e.g. "Europe/Kyiv"). Make resolves
+    this name from the birth coordinates via a geocoding/timezone API
+    step before calling us - we just do the correct historical math.
     """
-    tz_name = tf.timezone_at(lat=latitude, lng=longitude)
-    if tz_name is None:
-        raise ValueError(f"Could not resolve a timezone for coordinates {latitude}, {longitude}")
-    local_dt = datetime(year, month, day, hour, minute, tzinfo=ZoneInfo(tz_name))
+    local_dt = datetime(year, month, day, hour, minute, tzinfo=ZoneInfo(timezone_name))
     utc_dt = local_dt.astimezone(ZoneInfo("UTC"))
     jd = swe.julday(utc_dt.year, utc_dt.month, utc_dt.day, utc_dt.hour + utc_dt.minute / 60.0)
-    return jd, tz_name
+    return jd
 
 
 def calculate_planets(julian_day):
@@ -160,24 +154,22 @@ def natal_chart():
     {
       "year": 1995, "month": 6, "day": 14,
       "hour": 14, "minute": 30,
+      "timezone_name": "Europe/Kyiv",
       "latitude": 50.4501, "longitude": 30.5234
     }
-    No utc_offset needed - the service resolves the correct historical
-    timezone automatically from the coordinates (handles old DST rules,
-    Soviet-era decree time, etc. correctly on its own).
-    Latitude/longitude must be provided already resolved from the birth
-    place (Make will look this up via a geocoding module before calling us).
+    timezone_name must be a valid IANA name (e.g. "Europe/Kyiv") - Make
+    resolves this from the birth place via geocoding before calling us,
+    so historical DST/decree-time rules are handled correctly.
     """
     data = request.get_json()
-    jd, tz_name = local_time_to_julian_day(
+    jd = local_time_to_julian_day(
         data["year"], data["month"], data["day"],
-        data["hour"], data["minute"], data["latitude"], data["longitude"]
+        data["hour"], data["minute"], data["timezone_name"]
     )
     planets = calculate_planets(jd)
     house_data = calculate_houses(jd, data["latitude"], data["longitude"])
 
     return jsonify({
-        "resolved_timezone": tz_name,
         "planets": planets,
         "houses": house_data["houses"],
         "ascendant": house_data["ascendant"],
@@ -226,25 +218,25 @@ def test_transits():
 def test_natal():
     """
     Temporary browser-friendly test route for the natal chart.
-    No utc_offset needed anymore - pass coordinates and local birth
-    time, and the service resolves the correct historical timezone
-    on its own. Example:
-    /test-natal?year=1984&month=12&day=20&hour=16&minute=6&latitude=49.57&longitude=25.60
+    Pass a valid IANA timezone name directly (e.g. "Europe/Kyiv") -
+    look it up on Wikipedia's "List of tz database time zones" if unsure.
+    Example:
+    /test-natal?year=1984&month=12&day=20&hour=16&minute=6&timezone_name=Europe/Kyiv&latitude=49.57&longitude=25.60
     """
     year = int(request.args.get("year"))
     month = int(request.args.get("month"))
     day = int(request.args.get("day"))
     hour = int(request.args.get("hour"))
     minute = int(request.args.get("minute"))
+    timezone_name = request.args.get("timezone_name")
     latitude = float(request.args.get("latitude"))
     longitude = float(request.args.get("longitude"))
 
-    jd, tz_name = local_time_to_julian_day(year, month, day, hour, minute, latitude, longitude)
+    jd = local_time_to_julian_day(year, month, day, hour, minute, timezone_name)
     planets = calculate_planets(jd)
     house_data = calculate_houses(jd, latitude, longitude)
 
     return jsonify({
-        "resolved_timezone": tz_name,
         "planets": planets,
         "houses": house_data["houses"],
         "ascendant": house_data["ascendant"],
