@@ -403,10 +403,10 @@ def badge_anchor(cx, cy, r, angle, degree_outward):
         ux, uy = -ux, -uy
     vx, vy = 0.79, 0.61                              # lower-right
     if ux * vx + uy * vy < 0.45:
-        return gx + 4.3, gy + 3.4
+        return gx + 5.3, gy + 4.3
     tx, ty = -math.sin(rad), -math.cos(rad)         # tangent
     sgn = 1 if (ty > 0.3 or (abs(ty) <= 0.3 and tx > 0)) else -1
-    return gx + sgn * tx * 5.6, gy + sgn * ty * 5.6 + 0.8
+    return gx + sgn * tx * 7.0, gy + sgn * ty * 7.0 + 1.0
 
 
 def retro_badge(gx, gy, name, planet):
