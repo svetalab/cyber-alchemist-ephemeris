@@ -432,10 +432,10 @@ def render_chart_svg(natal_data):
         line = f'x1="{x1:.2f}" y1="{y1:.2f}" x2="{x2:.2f}" y2="{y2:.2f}"'
         if sparkle:
             parts.append(f'<line {line} stroke="{core}" stroke-width="{width * 3.0:.2f}" '
-                          f'opacity="0.35" filter="url(#glow)"{dash_attr}/>')
-        parts.append(f'<line {line} stroke="{core}" stroke-width="{width}" opacity="0.95"{dash_attr}/>')
+                          f'opacity="0.2" filter="url(#glow)"{dash_attr}/>')
+        parts.append(f'<line {line} stroke="{core}" stroke-width="{width}" opacity="0.72"{dash_attr}/>')
         if sparkle:
-            parts.append(f'<line {line} stroke="{facet}" stroke-width="{width * 0.28:.2f}" opacity="0.5"{dash_attr}/>')
+            parts.append(f'<line {line} stroke="{facet}" stroke-width="{width * 0.28:.2f}" opacity="0.3"{dash_attr}/>')
             # deterministic glitter: same chart -> same sparkles every render
             rng = random.Random(f"{a_name}-{b_name}-{asp['aspect']}")
             length = math.hypot(x2 - x1, y2 - y1)
@@ -445,7 +445,7 @@ def render_chart_svg(natal_data):
                 sx, sy = x1 + (x2 - x1) * t, y1 + (y2 - y1) * t
                 size = rng.uniform(0.5, 1.25) * (1 if not dash else 0.8)
                 tint = rng.choice(["#F6E7C8", facet, "#FFF4E0"])
-                parts.append(_sparkle(sx, sy, size, tint, rng.uniform(0.45, 0.85)))
+                parts.append(_sparkle(sx, sy, size, tint, rng.uniform(0.3, 0.65)))
 
     # ---- Exact-degree dots + thin leader to the (possibly shifted) glyph ----
     for name, lon in planet_longitude.items():
@@ -492,32 +492,20 @@ def render_chart_svg(natal_data):
                       f'fill="#B8A77A" text-anchor="middle" dominant-baseline="central">'
                       f'{natal_data["planets"][name]["degree_display"]}</text>')
 
-    # ---- House labels: stacked number + degree, wrapped in the same golden mist as the moon ----
+    # ---- House labels: crisp, fine, semi-transparent antique gold (no haze) ----
     for i, (a, h) in cusp_angles.items():
         is_angle = i in ANGLE_LABELS
         p = polar(cx, cy, r_outer + 15, a)
         label = ANGLE_LABELS[i] if is_angle else ROMAN_NUMERALS[i - 1]
-        size = 6.2 if is_angle else 5.8
-        ly, dy = p[1] - 2.9, p[1] + 3.6
-        deg_txt = format_dms(h["degree_in_sign"])
-        # soft fog cloud behind the pair
-        parts.append(f'<ellipse cx="{p[0]:.1f}" cy="{p[1]:.1f}" rx="12" ry="9" fill="url(#fog)"/>')
-        # blurred glowing copy (the haze), then the crisp text on top
-        parts.append(f'<text x="{p[0]:.1f}" y="{ly:.1f}" font-family="{LABEL_FONT}" font-size="{size}" '
-                      f'fill="#F1D78E" stroke="#F1D78E" stroke-width="0.6" opacity="0.55" filter="url(#mist)" '
-                      f'text-anchor="middle" dominant-baseline="central">{label}</text>')
-        parts.append(f'<text x="{p[0]:.1f}" y="{ly:.1f}" font-family="{LABEL_FONT}" font-size="{size}" '
-                      f'fill="{ANTIQUE_GOLD}" opacity="{0.9 if is_angle else 0.78}" text-anchor="middle" '
+        size = 5.6 if is_angle else 5.2
+        ly, dy = p[1] - 2.7, p[1] + 3.3
+        crisp = 'text-rendering="geometricPrecision" font-weight="400" letter-spacing="0.25"'
+        parts.append(f'<text x="{p[0]:.1f}" y="{ly:.1f}" font-family="{LABEL_FONT}" font-size="{size}" {crisp} '
+                      f'fill="{ANTIQUE_GOLD}" fill-opacity="{0.78 if is_angle else 0.68}" text-anchor="middle" '
                       f'dominant-baseline="central">{label}</text>')
-        parts.append(f'<text x="{p[0]:.1f}" y="{dy:.1f}" font-family="{LABEL_FONT}" font-size="3.9" '
-                      f'fill="#F1D78E" opacity="0.35" filter="url(#mist)" text-anchor="middle" '
-                      f'dominant-baseline="central">{deg_txt}</text>')
-        parts.append(f'<text x="{p[0]:.1f}" y="{dy:.1f}" font-family="{LABEL_FONT}" font-size="3.9" '
-                      f'fill="{ANTIQUE_GOLD}" opacity="0.6" text-anchor="middle" dominant-baseline="central">'
-                      f'{deg_txt}</text>')
-        # one faint star-glint beside each numeral, echoing the stars by the moon
-        half_w = len(label) * size * 0.3
-        parts.append(_sparkle(p[0] + half_w + 1.8, ly - 2.6, 0.9 if is_angle else 0.75, "#F6E7C8", 0.6))
+        parts.append(f'<text x="{p[0]:.1f}" y="{dy:.1f}" font-family="{LABEL_FONT}" font-size="3.6" {crisp} '
+                      f'fill="{ANTIQUE_GOLD}" fill-opacity="0.55" text-anchor="middle" dominant-baseline="central">'
+                      f'{format_dms(h["degree_in_sign"])}</text>')
 
     parts.append('</svg>')
     return "".join(parts)
