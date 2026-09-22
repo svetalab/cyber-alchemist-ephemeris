@@ -209,6 +209,29 @@ def local_time_to_julian_day(year, month, day, hour, minute, timezone_name):
     return jd
 
 
+# Typical daily motion (°/day) used to judge when a planet has "stopped".
+# A planet is stationary when its speed drops below STATION_FRACTION of this -
+# so Mercury counts as stationary for ~1-2 days, Jupiter/Saturn for ~a week, Pluto for weeks.
+TYPICAL_SPEED = {
+    "mercury": 1.2, "venus": 1.2, "mars": 0.52, "jupiter": 0.083, "saturn": 0.034,
+    "uranus": 0.012, "neptune": 0.006, "pluto": 0.004,
+}
+STATION_FRACTION = 0.10
+
+
+def station_state(julian_day, name, code, speed):
+    """
+    None if moving normally; "retrograde" if stopping before turning retrograde (SR);
+    "direct" if stopping before turning direct (SD).
+    Sun, Moon, nodes and Lilith never station, so they are skipped.
+    """
+    typical = TYPICAL_SPEED.get(name)
+    if typical is None or abs(speed) >= typical * STATION_FRACTION:
+        return None
+    next_speed = swe.calc_ut(julian_day + 1, code, swe.FLG_MOSEPH | swe.FLG_SPEED)[0][3]
+    return "retrograde" if next_speed < speed else "direct"
+
+
 def calculate_planets(julian_day):
     """
     Calculates the position of every planet in PLANETS for a given moment.
@@ -221,13 +244,16 @@ def calculate_planets(julian_day):
         result, _ = swe.calc_ut(julian_day, code, swe.FLG_MOSEPH | swe.FLG_SPEED)
         longitude = result[0]
         is_retrograde = result[3] < 0  # negative daily speed = retrograde
+        station = station_state(julian_day, name, code, result[3])
         sign_info = degree_to_sign(longitude)
         positions[name] = {
             "longitude": round(longitude, 4),
             "sign": sign_info["sign"],
             "degree_in_sign": sign_info["degree"],
             "degree_display": sign_info["degree_display"],
-            "retrograde": is_retrograde
+            "retrograde": is_retrograde,
+            "station": station,
+            "speed": round(result[3], 5)
         }
 
     if "north_node" in positions:
@@ -238,7 +264,9 @@ def calculate_planets(julian_day):
             "sign": sign_info["sign"],
             "degree_in_sign": sign_info["degree"],
             "degree_display": sign_info["degree_display"],
-            "retrograde": positions["north_node"]["retrograde"]
+            "retrograde": positions["north_node"]["retrograde"],
+            "station": None,
+            "speed": positions["north_node"]["speed"]
         }
 
     return positions
@@ -358,6 +386,34 @@ def retro_mark(name, planet):
     if planet.get("retrograde") and name not in ("north_node", "south_node"):
         return " &#8478;"
     return ""
+
+
+def retro_badge(gx, gy, name, planet):
+    """
+    Hair-thin hand-drawn ℞ (an SVG path, not a font glyph, so the line weight is
+    fully under our control) in the same pale gold as the planet glyphs, sitting
+    as a tiny subscript at the lower-right of the glyph, with one faint glint on its tail.
+    """
+    x, y = gx + 3.4, gy + 1.6          # top-left of the letter
+    if planet.get("station"):
+        # hair-thin S: the planet has stopped and is about to turn (SR or SD)
+        d = (f"M{x + 2.0:.2f},{y + 0.45:.2f} "
+             f"C{x + 1.6:.2f},{y - 0.05:.2f} {x + 0.2:.2f},{y - 0.05:.2f} {x + 0.3:.2f},{y + 0.9:.2f} "
+             f"C{x + 0.4:.2f},{y + 1.6:.2f} {x + 2.1:.2f},{y + 1.5:.2f} {x + 2.1:.2f},{y + 2.45:.2f} "
+             f"C{x + 2.1:.2f},{y + 3.4:.2f} {x + 0.5:.2f},{y + 3.45:.2f} {x + 0.1:.2f},{y + 2.8:.2f}")
+        return (f'<path d="{d}" fill="none" stroke="#F4E4BC" stroke-width="0.24" '
+                f'stroke-linecap="round" stroke-linejoin="round" opacity="0.95"/>'
+                + _sparkle(x + 2.25, y + 0.2, 0.45, "#FFF6DC", 0.8))
+    if not retro_mark(name, planet):
+        return ""
+    d = (f"M{x:.2f},{y:.2f} V{y + 3.2:.2f} "                              # stem
+         f"M{x:.2f},{y:.2f} H{x + 1.1:.2f} C{x + 2.15:.2f},{y:.2f} {x + 2.15:.2f},{y + 1.6:.2f} "
+         f"{x + 1.1:.2f},{y + 1.6:.2f} H{x:.2f} "                          # bowl
+         f"M{x + 0.9:.2f},{y + 1.6:.2f} L{x + 2.5:.2f},{y + 3.5:.2f} "      # leg / tail
+         f"M{x + 1.45:.2f},{y + 3.15:.2f} L{x + 2.45:.2f},{y + 2.3:.2f}")   # the crossing stroke of ℞
+    return (f'<path d="{d}" fill="none" stroke="#F4E4BC" stroke-width="0.24" '
+            f'stroke-linecap="round" stroke-linejoin="round" opacity="0.95"/>'
+            + _sparkle(x + 2.55, y + 3.55, 0.45, "#FFF6DC", 0.8))
 
 
 def render_chart_svg(natal_data, transit_data=None):
@@ -523,13 +579,13 @@ def render_chart_svg(natal_data, transit_data=None):
             g = polar(cx, cy, r_t_glyph, angle_for(t_display[name]))
             d = polar(cx, cy, r_t_degree, angle_for(t_display[name]))
             tp = transit_data["planets"][name]
-            retro = retro_mark(name, tp)
             parts.append(f'<text x="{g[0]:.1f}" y="{g[1]:.1f}" font-family="{SYMBOL_FONT}" font-size="8.5" '
                           f'fill="{TRANSIT_TONE}" text-anchor="middle" dominant-baseline="central">'
                           f'{PLANET_GLYPHS.get(name, "?")}</text>')
+            parts.append(retro_badge(g[0], g[1], name, tp))
             parts.append(f'<text x="{d[0]:.1f}" y="{d[1]:.1f}" font-family="{LABEL_FONT}" font-size="3.8" '
                           f'fill="{TRANSIT_TONE_SOFT}" text-anchor="middle" dominant-baseline="central">'
-                          f'{tp["degree_display"]}{retro}</text>')
+                          f'{tp["degree_display"]}</text>')
         if transit_data.get("label"):
             parts.append(f'<text x="{cx}" y="{400 + M - 10}" font-family="{LABEL_FONT}" font-size="5.5" '
                           f'letter-spacing="0.6" fill="{TRANSIT_TONE}" fill-opacity="0.75" text-anchor="middle">'
@@ -568,9 +624,10 @@ def render_chart_svg(natal_data, transit_data=None):
         parts.append(f'<text x="{g[0]:.1f}" y="{g[1]:.1f}" font-family="{SYMBOL_FONT}" font-size="9" '
                       f'fill="#F4E4BC" text-anchor="middle" dominant-baseline="central">'
                       f'{PLANET_GLYPHS.get(name, "?")}</text>')
+        parts.append(retro_badge(g[0], g[1], name, natal_data["planets"][name]))
         parts.append(f'<text x="{d[0]:.1f}" y="{d[1]:.1f}" font-family="{LABEL_FONT}" font-size="4.2" '
                       f'fill="#B8A77A" text-anchor="middle" dominant-baseline="central">'
-                      f'{natal_data["planets"][name]["degree_display"]}{retro_mark(name, natal_data["planets"][name])}</text>')
+                      f'{natal_data["planets"][name]["degree_display"]}</text>')
 
     # ---- House labels: crisp, fine, semi-transparent antique gold (no haze) ----
     for i, (a, h) in cusp_angles.items():
