@@ -330,7 +330,37 @@ def _sparkle(x, y, size, fill, opacity):
     return f'<polygon points="{pts}" fill="{fill}" opacity="{opacity:.2f}"/>'
 
 
-def render_chart_svg(natal_data):
+def transit_natal_aspects(transit_planets, natal_planets):
+    """Major aspects from each transiting planet to each natal planet, flat TRANSIT_ORB."""
+    found = []
+    for t_name, t in transit_planets.items():
+        for n_name, n in natal_planets.items():
+            diff = abs(t["longitude"] - n["longitude"]) % 360
+            if diff > 180:
+                diff = 360 - diff
+            for aspect_name, exact in ASPECT_ANGLES.items():
+                if aspect_name in MINOR_ASPECTS:
+                    continue
+                orb = abs(diff - exact)
+                if orb <= TRANSIT_ORB:
+                    found.append({"transit": t_name, "natal": n_name, "aspect": aspect_name,
+                                  "orb": round(orb, 2)})
+                    break
+    return found
+
+
+TRANSIT_TONE = "#D8A697"      # rose-gold: transits read as a different "metal" from the natal gold
+TRANSIT_TONE_SOFT = "#A9786C"
+
+
+def retro_mark(name, planet):
+    """Small ℞ after the degree for retrograde planets (nodes excluded - they are almost always retrograde)."""
+    if planet.get("retrograde") and name not in ("north_node", "south_node"):
+        return " &#8478;"
+    return ""
+
+
+def render_chart_svg(natal_data, transit_data=None):
     """
     Renders the natal chart in the agreed dark-jewel palette:
     black background, true-arc zodiac band in element tones, antique-gold
@@ -343,6 +373,12 @@ def render_chart_svg(natal_data):
 
     cx, cy = 200, 200
     r_outer, r_inner, r_small = 185, 160, 118
+    has_transits = bool(transit_data)
+    r_t_outer = 214                      # outer rim of the transit band (only used with transits)
+    r_t_glyph, r_t_degree = 197.5, 207.5
+    M = 50 if has_transits else 20       # viewBox margin
+    r_house_label = (r_t_outer + 14) if has_transits else (r_outer + 15)
+    r_cusp_end = (r_t_outer + 3) if has_transits else (r_outer + 6)
     r_glyph, r_degree, r_leader_end = 146, 133.5, 126
     min_sep = 8.0  # degrees between neighbouring planet glyphs
 
@@ -353,7 +389,9 @@ def render_chart_svg(natal_data):
         return (180 + (longitude - asc_longitude)) % 360
 
     # extra margin in the viewBox so outer labels (Asc / Dsc / MC / IC) are never cut off
-    parts = ['<svg viewBox="-20 -20 440 440" width="880" height="880" xmlns="http://www.w3.org/2000/svg">']
+    side = 400 + 2 * M
+    parts = [f'<svg viewBox="{-M} {-M} {side} {side}" width="{side * 2}" height="{side * 2}" '
+             'xmlns="http://www.w3.org/2000/svg">']
     parts.append(
         '<defs>'
         # userSpaceOnUse: gradients never vanish on perfectly vertical/horizontal lines
@@ -367,11 +405,11 @@ def render_chart_svg(natal_data):
         '<stop offset="0" stop-color="#F4E4BC" stop-opacity="0.16"/>'
         '<stop offset="0.6" stop-color="#D4AF37" stop-opacity="0.05"/>'
         '<stop offset="1" stop-color="#D4AF37" stop-opacity="0"/></radialGradient>'
-        '<filter id="glow" filterUnits="userSpaceOnUse" x="-20" y="-20" width="440" height="440">'
+        '<filter id="glow" filterUnits="userSpaceOnUse" x="-60" y="-60" width="520" height="520">'
         '<feGaussianBlur stdDeviation="0.9"/></filter>'
-        '<filter id="softglow" filterUnits="userSpaceOnUse" x="-20" y="-20" width="440" height="440">'
+        '<filter id="softglow" filterUnits="userSpaceOnUse" x="-60" y="-60" width="520" height="520">'
         '<feGaussianBlur stdDeviation="1.6"/></filter>'
-        '<filter id="mist" filterUnits="userSpaceOnUse" x="-20" y="-20" width="440" height="440">'
+        '<filter id="mist" filterUnits="userSpaceOnUse" x="-60" y="-60" width="520" height="520">'
         '<feGaussianBlur stdDeviation="1.3"/></filter>'
         '<radialGradient id="fog" cx="0.5" cy="0.5" r="0.5">'
         '<stop offset="0" stop-color="#E8CF8A" stop-opacity="0.13"/>'
@@ -379,7 +417,7 @@ def render_chart_svg(natal_data):
         '<stop offset="1" stop-color="#C9A94E" stop-opacity="0"/></radialGradient>'
         '</defs>'
     )
-    parts.append('<rect x="-20" y="-20" width="440" height="440" fill="#050303"/>')
+    parts.append(f'<rect x="{-M}" y="{-M}" width="{side}" height="{side}" fill="#050303"/>')
 
     # ---- Zodiac band as TRUE arcs ----
     for i, sign in enumerate(ZODIAC_SIGNS):
@@ -407,7 +445,7 @@ def render_chart_svg(natal_data):
         a = angle_for(ZODIAC_SIGNS.index(h["sign"]) * 30 + h["degree_in_sign"])
         cusp_angles[i] = (a, h)
         is_angle = i in ANGLE_LABELS
-        p_over = polar(cx, cy, r_outer + 6, a)
+        p_over = polar(cx, cy, r_cusp_end, a)
         parts.append(f'<line x1="{cx}" y1="{cy}" x2="{p_over[0]:.1f}" y2="{p_over[1]:.1f}" '
                       f'stroke="{ANTIQUE_GOLD}" stroke-width="{0.35 if is_angle else 0.2}" '
                       f'opacity="{0.55 if is_angle else 0.28}"/>')
@@ -421,7 +459,17 @@ def render_chart_svg(natal_data):
     ring_point = {name: polar(cx, cy, r_small, angle_for(lon)) for name, lon in planet_longitude.items()}
 
     # ---- Aspect lines: glow underlay -> jewel core -> bright facet -> glitter ----
-    for asp in natal_data.get("aspects", []):
+    if has_transits:
+        t_lon = {name: ZODIAC_SIGNS.index(p["sign"]) * 30 + p["degree_in_sign"]
+                 for name, p in transit_data["planets"].items()}
+        for name, lon in t_lon.items():
+            ring_point["t_" + name] = polar(cx, cy, r_small, angle_for(lon))
+        aspect_list = [{"point_a": "t_" + x["transit"], "point_b": x["natal"], "aspect": x["aspect"]}
+                       for x in transit_data.get("aspects", [])]
+    else:
+        aspect_list = natal_data.get("aspects", [])
+
+    for asp in aspect_list:
         a_name, b_name = asp["point_a"], asp["point_b"]
         if a_name not in ring_point or b_name not in ring_point:
             continue
@@ -454,6 +502,38 @@ def render_chart_svg(natal_data):
         parts.append(f'<line x1="{dot[0]:.1f}" y1="{dot[1]:.1f}" x2="{lead[0]:.1f}" y2="{lead[1]:.1f}" '
                       f'stroke="{ANTIQUE_GOLD}" stroke-width="0.18" opacity="0.45"/>')
         parts.append(f'<circle cx="{dot[0]:.1f}" cy="{dot[1]:.1f}" r="1.2" fill="#F4E4BC"/>')
+
+    # ---- Transit band outside the zodiac: rose-gold glyphs, tick at exact degree ----
+    if has_transits:
+        parts.append(f'<circle cx="{cx}" cy="{cy}" r="{r_t_outer}" fill="none" stroke="url(#gold)" '
+                      f'stroke-width="0.3" opacity="0.45"/>')
+        t_display = spread_glyph_angles(t_lon, 7.5)
+        for name, lon in t_lon.items():
+            a = angle_for(lon)
+            # hollow rose marker where the transit touches the aspect circle
+            m = ring_point["t_" + name]
+            parts.append(f'<circle cx="{m[0]:.1f}" cy="{m[1]:.1f}" r="1.1" fill="#050303" '
+                          f'stroke="{TRANSIT_TONE}" stroke-width="0.3"/>')
+            t1, t2 = polar(cx, cy, r_outer, a), polar(cx, cy, r_outer + 3.5, a)
+            parts.append(f'<line x1="{t1[0]:.1f}" y1="{t1[1]:.1f}" x2="{t2[0]:.1f}" y2="{t2[1]:.1f}" '
+                          f'stroke="{TRANSIT_TONE}" stroke-width="0.4" opacity="0.8"/>')
+            lead = polar(cx, cy, r_t_glyph - 5, angle_for(t_display[name]))
+            parts.append(f'<line x1="{t2[0]:.1f}" y1="{t2[1]:.1f}" x2="{lead[0]:.1f}" y2="{lead[1]:.1f}" '
+                          f'stroke="{TRANSIT_TONE_SOFT}" stroke-width="0.18" opacity="0.5"/>')
+            g = polar(cx, cy, r_t_glyph, angle_for(t_display[name]))
+            d = polar(cx, cy, r_t_degree, angle_for(t_display[name]))
+            tp = transit_data["planets"][name]
+            retro = retro_mark(name, tp)
+            parts.append(f'<text x="{g[0]:.1f}" y="{g[1]:.1f}" font-family="{SYMBOL_FONT}" font-size="8.5" '
+                          f'fill="{TRANSIT_TONE}" text-anchor="middle" dominant-baseline="central">'
+                          f'{PLANET_GLYPHS.get(name, "?")}</text>')
+            parts.append(f'<text x="{d[0]:.1f}" y="{d[1]:.1f}" font-family="{LABEL_FONT}" font-size="3.8" '
+                          f'fill="{TRANSIT_TONE_SOFT}" text-anchor="middle" dominant-baseline="central">'
+                          f'{tp["degree_display"]}{retro}</text>')
+        if transit_data.get("label"):
+            parts.append(f'<text x="{cx}" y="{400 + M - 10}" font-family="{LABEL_FONT}" font-size="5.5" '
+                          f'letter-spacing="0.6" fill="{TRANSIT_TONE}" fill-opacity="0.75" text-anchor="middle">'
+                          f'{transit_data["label"]}</text>')
 
     # ---- Centre emblem: young crescent moon with star-glints, drawn ABOVE the aspect lines ----
     parts.append(f'<circle cx="{cx}" cy="{cy}" r="22" fill="#050303"/>')
@@ -490,12 +570,12 @@ def render_chart_svg(natal_data):
                       f'{PLANET_GLYPHS.get(name, "?")}</text>')
         parts.append(f'<text x="{d[0]:.1f}" y="{d[1]:.1f}" font-family="{LABEL_FONT}" font-size="4.2" '
                       f'fill="#B8A77A" text-anchor="middle" dominant-baseline="central">'
-                      f'{natal_data["planets"][name]["degree_display"]}</text>')
+                      f'{natal_data["planets"][name]["degree_display"]}{retro_mark(name, natal_data["planets"][name])}</text>')
 
     # ---- House labels: crisp, fine, semi-transparent antique gold (no haze) ----
     for i, (a, h) in cusp_angles.items():
         is_angle = i in ANGLE_LABELS
-        p = polar(cx, cy, r_outer + 15, a)
+        p = polar(cx, cy, r_house_label, a)
         label = ANGLE_LABELS[i] if is_angle else ROMAN_NUMERALS[i - 1]
         size = 5.6 if is_angle else 5.2
         ly, dy = p[1] - 2.7, p[1] + 3.3
@@ -574,6 +654,70 @@ def test_chart_svg():
     }
     svg = render_chart_svg(natal_data)
     return Response(svg, mimetype="image/svg+xml")
+
+
+def build_natal_data(year, month, day, hour, minute, timezone_name, latitude, longitude):
+    """Everything the chart renderer needs for one natal chart."""
+    jd = local_time_to_julian_day(year, month, day, hour, minute, timezone_name)
+    planets = calculate_planets(jd)
+    house_data = calculate_houses(jd, latitude, longitude)
+    aspect_points = {name: p["longitude"] for name, p in planets.items()}
+    aspect_points["ascendant"] = house_data["ascendant"]["degree"] + ZODIAC_SIGNS.index(house_data["ascendant"]["sign"]) * 30
+    aspect_points["midheaven"] = house_data["midheaven"]["degree"] + ZODIAC_SIGNS.index(house_data["midheaven"]["sign"]) * 30
+    return {
+        "planets": planets,
+        "houses": house_data["houses"],
+        "ascendant": house_data["ascendant"],
+        "midheaven": house_data["midheaven"],
+        "aspects": calculate_aspects(aspect_points),
+    }
+
+
+def build_transit_data(natal_planets, t=None):
+    """
+    t: optional dict {year, month, day, hour, minute, timezone_name}.
+    Missing -> this exact moment (UTC). Returns planets, transit->natal aspects and a caption.
+    """
+    if t and t.get("year"):
+        tz = t.get("timezone_name") or "UTC"
+        jd = local_time_to_julian_day(int(t["year"]), int(t["month"]), int(t["day"]),
+                                      int(t.get("hour", 12)), int(t.get("minute", 0)), tz)
+        label = f'Транзити · {int(t["day"]):02d}.{int(t["month"]):02d}.{int(t["year"])} ' \
+                f'{int(t.get("hour", 12)):02d}:{int(t.get("minute", 0)):02d}'
+    else:
+        now = datetime.now(timezone.utc)
+        jd = swe.julday(now.year, now.month, now.day, now.hour + now.minute / 60.0)
+        label = f'Транзити · {now:%d.%m.%Y %H:%M} UTC'
+    planets = calculate_planets(jd)
+    return {"planets": planets, "aspects": transit_natal_aspects(planets, natal_planets), "label": label}
+
+
+@app.route("/transit-chart-svg", methods=["POST"])
+def transit_chart_svg():
+    """
+    Body: the same natal fields as /chart-svg, plus optional
+    "transit": {"year", "month", "day", "hour", "minute", "timezone_name"}.
+    Without "transit" the chart shows the sky right now.
+    """
+    data = request.get_json()
+    natal = build_natal_data(data["year"], data["month"], data["day"], data["hour"], data["minute"],
+                             data["timezone_name"], data["latitude"], data["longitude"])
+    transit = build_transit_data(natal["planets"], data.get("transit"))
+    return Response(render_chart_svg(natal, transit), mimetype="image/svg+xml")
+
+
+@app.route("/test-transit-chart-svg", methods=["GET"])
+def test_transit_chart_svg():
+    """
+    Natal params as in /test-chart-svg, plus optional t_year, t_month, t_day,
+    t_hour, t_minute, t_timezone_name (default: now).
+    """
+    a = request.args
+    natal = build_natal_data(int(a["year"]), int(a["month"]), int(a["day"]), int(a["hour"]),
+                             int(a["minute"]), a["timezone_name"], float(a["latitude"]), float(a["longitude"]))
+    t = {k[2:]: a[k] for k in a if k.startswith("t_")}
+    transit = build_transit_data(natal["planets"], t or None)
+    return Response(render_chart_svg(natal, transit), mimetype="image/svg+xml")
 
 
 @app.route("/natal", methods=["POST"])
