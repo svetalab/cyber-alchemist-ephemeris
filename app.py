@@ -57,10 +57,12 @@ TRANSIT_ORB = 2  # flat orb for transit-to-natal aspects, matching Chronos's tra
 
 # ---- Chart rendering constants (agreed visual design: black bg, emerald-silver) ----
 SIGN_COLORS = {
-    "Aries": "#B33951", "Taurus": "#4C7A4C", "Gemini": "#C9A227", "Cancer": "#4A7FA5",
-    "Leo": "#D98E36", "Virgo": "#6B8E4E", "Libra": "#A8729A", "Scorpio": "#7A2E3B",
-    "Sagittarius": "#3E6E8C", "Capricorn": "#5A5A72", "Aquarius": "#4FA3A3", "Pisces": "#6C5B9E",
+    "Aries": "#3A1420", "Leo": "#3A1420", "Sagittarius": "#3A1420",        # deep wine (fire)
+    "Taurus": "#16241C", "Virgo": "#16241C", "Capricorn": "#16241C",       # deep forest (earth)
+    "Gemini": "#161B33", "Libra": "#161B33", "Aquarius": "#161B33",        # deep indigo (air)
+    "Cancer": "#241730", "Scorpio": "#241730", "Pisces": "#241730",        # deep plum (water)
 }
+GOLD_GRAD_STOPS = ("#D4AF37", "#F4E4BC")
 ZODIAC_GLYPHS = {
     "Aries": "&#9800;", "Taurus": "&#9801;", "Gemini": "&#9802;", "Cancer": "&#9803;",
     "Leo": "&#9804;", "Virgo": "&#9805;", "Libra": "&#9806;", "Scorpio": "&#9807;",
@@ -73,11 +75,11 @@ PLANET_GLYPHS = {
     "south_node": "&#9739;", "lilith": "&#9912;",
 }
 ASPECT_COLORS = {
-    "conjunction": "#D9F0E6",   # bright silver
+    "conjunction": "#D4AF37",   # antique gold
     "sextile": "#5FA98F",       # soft teal-green
-    "square": "#C77B6B",        # muted rose
-    "trine": "#3F9268",         # emerald green
-    "opposition": "#B0562F",    # deep amber-red
+    "square": "#8C3A3A",        # deep rose-red
+    "trine": "#2F6B4F",         # deep emerald
+    "opposition": "#8C4A2A",    # deep amber-red
 }
 
 
@@ -257,16 +259,16 @@ def polar(cx, cy, r, angle_deg):
 
 def render_chart_svg(natal_data):
     """
-    Renders the agreed chart design (black background, emerald-silver
-    accents, element-colored zodiac ring) plus the Chronos-style layout
-    she asked to match/beat: Roman numeral houses, labeled angles
-    (ASC/DSC/MC/IC), planets shown both as inner glyphs AND as exact
-    marker dots on the inner ring circumference (with a thin leader
-    line connecting the two), aspect lines drawn between those ring
-    dots, and a solid, fully-filled element-colored zodiac band.
+    Renders the chart in the agreed luxurious dark-jewel palette:
+    black background, true circular arcs for the zodiac band (no
+    polygon roughness), a dedicated dot-ring for exact planet degrees
+    separate from the glyph area, three glyph radius tiers so clustered
+    planets (e.g. a Sagittarius stellium) don't overlap, antique-gold
+    linework, Roman numeral houses and labeled angles outside the ring.
     """
     cx, cy = 200, 200
-    r_outer, r_inner, r_planet_a, r_planet_b = 185, 160, 128, 105
+    r_outer, r_inner, r_dot = 185, 160, 138
+    glyph_tiers = [118, 96, 74]
 
     asc_sign_index = ZODIAC_SIGNS.index(natal_data["ascendant"]["sign"])
     asc_longitude = asc_sign_index * 30 + natal_data["ascendant"]["degree"]
@@ -275,83 +277,90 @@ def render_chart_svg(natal_data):
         return (180 + (longitude - asc_longitude)) % 360
 
     parts = ['<svg viewBox="0 0 400 400" width="800" height="800" xmlns="http://www.w3.org/2000/svg">']
-    parts.append('<defs><linearGradient id="es" x1="0" y1="0" x2="1" y2="1">'
-                  '<stop offset="0" stop-color="#0F3D30"/><stop offset="0.5" stop-color="#5FA98F"/>'
-                  '<stop offset="1" stop-color="#D9F0E6"/></linearGradient></defs>')
-    parts.append('<rect x="0" y="0" width="400" height="400" fill="#000000"/>')
+    parts.append('<defs><linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">'
+                  f'<stop offset="0" stop-color="{GOLD_GRAD_STOPS[0]}"/>'
+                  f'<stop offset="1" stop-color="{GOLD_GRAD_STOPS[1]}"/></linearGradient></defs>')
+    parts.append('<rect x="0" y="0" width="400" height="400" fill="#050303"/>')
 
-    # Solid, vividly colored zodiac band - one distinct jewel-tone hue per sign, filling exactly the ring
+    # Zodiac band as TRUE arcs (not straight-line quads) - smooth, fully within r_outer, no seams
     for i, sign in enumerate(ZODIAC_SIGNS):
         a1, a2 = angle_for(i * 30), angle_for((i + 1) * 30)
-        p1i, p2i = polar(cx, cy, r_inner, a1), polar(cx, cy, r_inner, a2)
-        p1o, p2o = polar(cx, cy, r_outer, a1), polar(cx, cy, r_outer, a2)
-        parts.append(f'<path d="M{p1i[0]:.2f},{p1i[1]:.2f} L{p2i[0]:.2f},{p2i[1]:.2f} '
-                      f'L{p2o[0]:.2f},{p2o[1]:.2f} L{p1o[0]:.2f},{p1o[1]:.2f} Z" '
-                      f'fill="{SIGN_COLORS[sign]}" opacity="0.65"/>')
-        parts.append(f'<line x1="{p1i[0]:.2f}" y1="{p1i[1]:.2f}" x2="{p1o[0]:.2f}" y2="{p1o[1]:.2f}" '
-                      f'stroke="#000000" stroke-width="0.6" opacity="0.5"/>')
+        p_i1, p_i2 = polar(cx, cy, r_inner, a1), polar(cx, cy, r_inner, a2)
+        p_o1, p_o2 = polar(cx, cy, r_outer, a1), polar(cx, cy, r_outer, a2)
+        parts.append(
+            f'<path d="M{p_i1[0]:.2f},{p_i1[1]:.2f} '
+            f'A{r_inner},{r_inner} 0 0,0 {p_i2[0]:.2f},{p_i2[1]:.2f} '
+            f'L{p_o2[0]:.2f},{p_o2[1]:.2f} '
+            f'A{r_outer},{r_outer} 0 0,1 {p_o1[0]:.2f},{p_o1[1]:.2f} Z" '
+            f'fill="{SIGN_COLORS[sign]}"/>'
+        )
+        parts.append(f'<line x1="{p_i1[0]:.2f}" y1="{p_i1[1]:.2f}" x2="{p_o1[0]:.2f}" y2="{p_o1[1]:.2f}" '
+                      f'stroke="url(#gold)" stroke-width="0.4" opacity="0.6"/>')
 
-    parts.append(f'<circle cx="{cx}" cy="{cy}" r="{r_outer}" fill="none" stroke="url(#es)" stroke-width="0.7"/>')
-    parts.append(f'<circle cx="{cx}" cy="{cy}" r="{r_inner}" fill="none" stroke="url(#es)" stroke-width="0.5" opacity="0.85"/>')
+    parts.append(f'<circle cx="{cx}" cy="{cy}" r="{r_outer}" fill="none" stroke="url(#gold)" stroke-width="0.8"/>')
+    parts.append(f'<circle cx="{cx}" cy="{cy}" r="{r_inner}" fill="none" stroke="url(#gold)" stroke-width="0.5" opacity="0.8"/>')
+    parts.append(f'<circle cx="{cx}" cy="{cy}" r="{r_dot}" fill="none" stroke="url(#gold)" stroke-width="0.35" opacity="0.5"/>')
 
     # Zodiac glyphs, centered in their band
     for i, sign in enumerate(ZODIAC_SIGNS):
         a = angle_for(i * 30 + 15)
         p = polar(cx, cy, (r_outer + r_inner) / 2, a)
-        parts.append(f'<circle cx="{p[0]:.1f}" cy="{p[1]:.1f}" r="11" fill="#000000" opacity="0.3" '
-                      f'stroke="#F5F0E0" stroke-width="0.4"/>')
+        parts.append(f'<circle cx="{p[0]:.1f}" cy="{p[1]:.1f}" r="11" fill="#050303" opacity="0.35" '
+                      f'stroke="url(#gold)" stroke-width="0.5"/>')
         parts.append(f'<text x="{p[0]:.1f}" y="{p[1]:.1f}" font-family="var(--font-voice)" font-size="13" '
-                      f'fill="#F5F0E0" text-anchor="middle" dominant-baseline="central">{ZODIAC_GLYPHS[sign]}</text>')
+                      f'fill="#F4E4BC" text-anchor="middle" dominant-baseline="central">{ZODIAC_GLYPHS[sign]}</text>')
 
-    # House cusp lines - overshoot slightly past the outer ring, like Chronos; numbers/angle labels sit outside
+    # House cusp lines - overshoot slightly past the outer ring; numbers/angle labels sit outside
     for i in range(1, 13):
         h = natal_data["houses"][f"house_{i}"]
         h_longitude = ZODIAC_SIGNS.index(h["sign"]) * 30 + h["degree_in_sign"]
         a = angle_for(h_longitude)
         is_angle = i in ANGLE_LABELS
-        stroke = "url(#es)" if is_angle else "#EAF7F1"
-        width = 1.0 if is_angle else 0.35
-        opacity = 1.0 if is_angle else 0.5
+        stroke = "url(#gold)" if is_angle else "#8C8570"
+        width = 1.0 if is_angle else 0.3
+        opacity = 1.0 if is_angle else 0.4
         p_over = polar(cx, cy, r_outer + 6, a)
         parts.append(f'<line x1="{cx}" y1="{cy}" x2="{p_over[0]:.1f}" y2="{p_over[1]:.1f}" '
                       f'stroke="{stroke}" stroke-width="{width}" opacity="{opacity}"/>')
 
         label_text = ANGLE_LABELS[i] if is_angle else ROMAN_NUMERALS[i - 1]
-        label_color = "#D9F0E6" if is_angle else "#B9D4C9"
+        label_color = "#F4E4BC" if is_angle else "#C9BFA0"
         p_lbl = polar(cx, cy, r_outer + 16, a)
         parts.append(f'<text x="{p_lbl[0]:.1f}" y="{p_lbl[1]:.1f}" font-family="var(--font-voice)" '
                       f'font-size="9" fill="{label_color}" text-anchor="middle" dominant-baseline="central">'
                       f'{label_text}</text>')
         p_deg = polar(cx, cy, r_outer + 27, a)
         parts.append(f'<text x="{p_deg[0]:.1f}" y="{p_deg[1]:.1f}" font-family="var(--font-voice)" '
-                      f'font-size="6.5" fill="#7FA396" text-anchor="middle">{format_dms(h["degree_in_sign"])}</text>')
+                      f'font-size="6.5" fill="#8C8570" text-anchor="middle">{format_dms(h["degree_in_sign"])}</text>')
 
-    # Planet longitudes + automatic inner-glyph radius alternation to avoid overlap when planets cluster
+    # Planet longitudes + THREE-tier radius cycling so clustered planets (e.g. a stellium) get real separation
     planet_longitude = {
         name: ZODIAC_SIGNS.index(p["sign"]) * 30 + p["degree_in_sign"]
         for name, p in natal_data["planets"].items()
     }
     ordered = sorted(planet_longitude.items(), key=lambda kv: kv[1])
-    radii, last_lon, current_r = {}, None, r_planet_a
+    radii, last_lon, tier = {}, None, 0
     for name, lon in ordered:
         if last_lon is not None:
             gap = min((lon - last_lon) % 360, (last_lon - lon) % 360)
-            current_r = (r_planet_b if current_r == r_planet_a else r_planet_a) if gap < 10 else r_planet_a
-        radii[name] = current_r
+            tier = (tier + 1) % len(glyph_tiers) if gap < 14 else 0
+        else:
+            tier = 0
+        radii[name] = glyph_tiers[tier]
         last_lon = lon
 
-    # Ring-dot marker for every planet (exact degree on the inner ring) + thin leader line to its inner glyph
+    # Dedicated dot-ring marker for every planet's exact degree + thin leader line to its glyph
     ring_point = {}
     for name, lon in planet_longitude.items():
         a = angle_for(lon)
-        dot = polar(cx, cy, r_inner, a)
+        dot = polar(cx, cy, r_dot, a)
         ring_point[name] = dot
         glyph_p = polar(cx, cy, radii[name], a)
         parts.append(f'<line x1="{dot[0]:.1f}" y1="{dot[1]:.1f}" x2="{glyph_p[0]:.1f}" y2="{glyph_p[1]:.1f}" '
-                      f'stroke="#4E8776" stroke-width="0.3" opacity="0.6"/>')
-        parts.append(f'<circle cx="{dot[0]:.1f}" cy="{dot[1]:.1f}" r="2" fill="#D9F0E6"/>')
+                      f'stroke="#8C8570" stroke-width="0.3" opacity="0.5"/>')
+        parts.append(f'<circle cx="{dot[0]:.1f}" cy="{dot[1]:.1f}" r="2.2" fill="#F4E4BC"/>')
 
-    # Aspect lines, drawn between the ring-dots (Chronos-style), colored distinctly per aspect type
+    # Aspect lines, drawn between the dot-ring points, colored distinctly per aspect type
     for asp in natal_data.get("aspects", []):
         a_name, b_name = asp["point_a"], asp["point_b"]
         if a_name not in ring_point or b_name not in ring_point:
@@ -366,13 +375,14 @@ def render_chart_svg(natal_data):
         a = angle_for(lon)
         r = radii[name]
         p = polar(cx, cy, r, a)
-        parts.append(f'<circle cx="{p[0]:.1f}" cy="{p[1]:.1f}" r="9" fill="#000000" opacity="0.75"/>')
-        parts.append(f'<text x="{p[0]:.1f}" y="{p[1]:.1f}" font-family="var(--font-voice)" font-size="13" '
-                      f'fill="#D9F0E6" text-anchor="middle" dominant-baseline="central">'
+        parts.append(f'<circle cx="{p[0]:.1f}" cy="{p[1]:.1f}" r="9" fill="#050303" opacity="0.8" '
+                      f'stroke="url(#gold)" stroke-width="0.3"/>')
+        parts.append(f'<text x="{p[0]:.1f}" y="{p[1]:.1f}" font-family="var(--font-voice)" font-size="12" '
+                      f'fill="#F4E4BC" text-anchor="middle" dominant-baseline="central">'
                       f'{PLANET_GLYPHS.get(name, "?")}</text>')
-        p_label = polar(cx, cy, r - 14, a)
+        p_label = polar(cx, cy, r - 13, a)
         parts.append(f'<text x="{p_label[0]:.1f}" y="{p_label[1]:.1f}" font-family="var(--font-voice)" '
-                      f'font-size="6.2" fill="#8FCBB8" text-anchor="middle">'
+                      f'font-size="6" fill="#C9BFA0" text-anchor="middle">'
                       f'{natal_data["planets"][name]["degree_display"]}</text>')
 
     parts.append('</svg>')
