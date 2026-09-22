@@ -390,23 +390,22 @@ def retro_mark(name, planet):
 
 def badge_anchor(cx, cy, r, angle, degree_outward):
     """
-    Where the ℞ / S sits. Default: lower-right of the glyph, like a subscript.
-    But if the planet's degree label lies in roughly that same direction
-    (degree_outward=True for the transit ring, False for the natal ring), the
-    mark slides ALONG the ring instead, to the lower tangential side - so the
-    mark and the degree can never overlap anywhere on the wheel.
+    Where the ℞ / S sits, ~7 units from the glyph centre. Tries, in order of
+    preference: lower-right, lower-left, left, upper-right - and takes the first
+    one that does NOT point toward the planet's degree label (outward on the
+    transit ring, inward on the natal ring), so mark and degree never collide.
     """
     gx, gy = polar(cx, cy, r, angle)
     rad = math.radians(angle)
-    ux, uy = math.cos(rad), -math.sin(rad)          # radial unit vector (outward, screen coords)
+    ux, uy = math.cos(rad), -math.sin(rad)
     if not degree_outward:
         ux, uy = -ux, -uy
-    vx, vy = 0.79, 0.61                              # lower-right
-    if ux * vx + uy * vy < 0.45:
-        return gx + 5.3, gy + 4.3
-    tx, ty = -math.sin(rad), -math.cos(rad)         # tangent
-    sgn = 1 if (ty > 0.3 or (abs(ty) <= 0.3 and tx > 0)) else -1
-    return gx + sgn * tx * 7.0, gy + sgn * ty * 7.0 + 1.0
+    candidates = [(5.3, 4.3), (-6.0, 4.3), (-7.2, 1.2), (5.3, -4.6)]
+    for dx, dy in candidates:
+        n = math.hypot(dx, dy)
+        if (ux * dx + uy * dy) / n < 0.35:
+            return gx + dx, gy + dy
+    return gx + candidates[-1][0], gy + candidates[-1][1]
 
 
 def retro_badge(gx, gy, name, planet):
@@ -417,14 +416,16 @@ def retro_badge(gx, gy, name, planet):
     """
     x, y = gx - 1.2, gy - 1.6          # gx, gy = badge centre -> top-left of the letter
     if planet.get("station"):
-        # hair-thin S: the planet has stopped and is about to turn (SR or SD)
-        d = (f"M{x + 2.0:.2f},{y + 0.45:.2f} "
-             f"C{x + 1.6:.2f},{y - 0.05:.2f} {x + 0.2:.2f},{y - 0.05:.2f} {x + 0.3:.2f},{y + 0.9:.2f} "
-             f"C{x + 0.4:.2f},{y + 1.6:.2f} {x + 2.1:.2f},{y + 1.5:.2f} {x + 2.1:.2f},{y + 2.45:.2f} "
-             f"C{x + 2.1:.2f},{y + 3.4:.2f} {x + 0.5:.2f},{y + 3.45:.2f} {x + 0.1:.2f},{y + 2.8:.2f}")
+        # hair-thin italic S with soft curled terminals, drawn as a path (slanted like a serif italic)
+        pts = [(2.35, 0.55), (2.05, 0.0), (0.95, -0.05), (0.62, 0.5), (0.3, 1.1), (0.9, 1.5), (1.4, 1.75),
+               (2.0, 2.05), (2.2, 2.6), (1.8, 3.1), (1.4, 3.55), (0.4, 3.45), (0.0, 2.9)]
+        pts = [(x + px + (3.4 - py) * 0.16, y + py) for px, py in pts]
+        d = f"M{pts[0][0]:.2f},{pts[0][1]:.2f} " + " ".join(
+            f"C{pts[i][0]:.2f},{pts[i][1]:.2f} {pts[i + 1][0]:.2f},{pts[i + 1][1]:.2f} {pts[i + 2][0]:.2f},{pts[i + 2][1]:.2f}"
+            for i in range(1, len(pts), 3))
         return (f'<path d="{d}" fill="none" stroke="#F4E4BC" stroke-width="0.24" '
                 f'stroke-linecap="round" stroke-linejoin="round" opacity="0.95"/>'
-                + _sparkle(x + 2.25, y + 0.2, 0.45, "#FFF6DC", 0.8))
+                + _sparkle(x + 3.05, y + 0.3, 0.45, "#FFF6DC", 0.8))
     if not retro_mark(name, planet):
         return ""
     d = (f"M{x:.2f},{y:.2f} V{y + 3.2:.2f} "                              # stem
