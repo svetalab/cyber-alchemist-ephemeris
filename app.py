@@ -64,22 +64,22 @@ SIGN_COLORS = {
 }
 GOLD_GRAD_STOPS = ("#D4AF37", "#F4E4BC")
 ZODIAC_GLYPHS = {
-    "Aries": "&#9800;", "Taurus": "&#9801;", "Gemini": "&#9802;", "Cancer": "&#9803;",
-    "Leo": "&#9804;", "Virgo": "&#9805;", "Libra": "&#9806;", "Scorpio": "&#9807;",
-    "Sagittarius": "&#9808;", "Capricorn": "&#9809;", "Aquarius": "&#9810;", "Pisces": "&#9811;",
+    "Aries": "&#9800;&#xFE0E;", "Taurus": "&#9801;&#xFE0E;", "Gemini": "&#9802;&#xFE0E;", "Cancer": "&#9803;&#xFE0E;",
+    "Leo": "&#9804;&#xFE0E;", "Virgo": "&#9805;&#xFE0E;", "Libra": "&#9806;&#xFE0E;", "Scorpio": "&#9807;&#xFE0E;",
+    "Sagittarius": "&#9808;&#xFE0E;", "Capricorn": "&#9809;&#xFE0E;", "Aquarius": "&#9810;&#xFE0E;", "Pisces": "&#9811;&#xFE0E;",
 }
 PLANET_GLYPHS = {
-    "sun": "&#9737;", "moon": "&#9789;", "mercury": "&#9791;", "venus": "&#9792;",
-    "mars": "&#9794;", "jupiter": "&#9795;", "saturn": "&#9796;", "uranus": "&#9797;",
-    "neptune": "&#9798;", "pluto": "&#9799;", "north_node": "&#9738;",
-    "south_node": "&#9739;", "lilith": "&#9912;",
+    "sun": "&#9737;&#xFE0E;", "moon": "&#9789;&#xFE0E;", "mercury": "&#9791;&#xFE0E;", "venus": "&#9792;&#xFE0E;",
+    "mars": "&#9794;&#xFE0E;", "jupiter": "&#9795;&#xFE0E;", "saturn": "&#9796;&#xFE0E;", "uranus": "&#9797;&#xFE0E;",
+    "neptune": "&#9798;&#xFE0E;", "pluto": "&#9799;&#xFE0E;", "north_node": "&#9738;&#xFE0E;",
+    "south_node": "&#9739;&#xFE0E;", "lilith": "&#9912;&#xFE0E;",
 }
 ASPECT_STYLES = {
-    "conjunction": ("#D4AF37", None),
-    "sextile": ("#5FA98F", "1,3"),
-    "square": ("#8C3A3A", "4,2,1,2"),
-    "trine": ("#C9BFA0", "1,3"),
-    "opposition": ("#8C4A2A", "4,2,1,2"),
+    "conjunction": ("url(#gold)", None, 0.5),
+    "sextile": ("#5FA98F", "1,3", 0.35),
+    "square": ("url(#ruby)", None, 0.6),
+    "trine": ("#2F6B4F", None, 0.5),
+    "opposition": ("url(#ruby)", None, 0.6),
 }
 
 
@@ -267,8 +267,8 @@ def render_chart_svg(natal_data):
     linework, Roman numeral houses and labeled angles outside the ring.
     """
     cx, cy = 200, 200
-    r_outer, r_inner, r_small = 185, 160, 55
-    glyph_tiers = [148, 128, 108]
+    r_outer, r_inner, r_small = 185, 160, 118
+    glyph_tiers = [148, 133]
 
     asc_sign_index = ZODIAC_SIGNS.index(natal_data["ascendant"]["sign"])
     asc_longitude = asc_sign_index * 30 + natal_data["ascendant"]["degree"]
@@ -279,7 +279,10 @@ def render_chart_svg(natal_data):
     parts = ['<svg viewBox="0 0 400 400" width="800" height="800" xmlns="http://www.w3.org/2000/svg">']
     parts.append('<defs><linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">'
                   f'<stop offset="0" stop-color="{GOLD_GRAD_STOPS[0]}"/>'
-                  f'<stop offset="1" stop-color="{GOLD_GRAD_STOPS[1]}"/></linearGradient></defs>')
+                  f'<stop offset="1" stop-color="{GOLD_GRAD_STOPS[1]}"/></linearGradient>'
+                  '<linearGradient id="ruby" x1="0" y1="0" x2="1" y2="1">'
+                  '<stop offset="0" stop-color="#5A0F1A"/><stop offset="0.5" stop-color="#B0203A"/>'
+                  '<stop offset="1" stop-color="#E8506B"/></linearGradient></defs>')
     parts.append('<rect x="0" y="0" width="400" height="400" fill="#050303"/>')
 
     # Zodiac band as TRUE arcs (not straight-line quads) - smooth, fully within r_outer, no seams
@@ -301,21 +304,16 @@ def render_chart_svg(natal_data):
     parts.append(f'<circle cx="{cx}" cy="{cy}" r="{r_inner}" fill="none" stroke="url(#gold)" stroke-width="0.35" opacity="0.7"/>')
     parts.append(f'<circle cx="{cx}" cy="{cy}" r="{r_small}" fill="none" stroke="url(#gold)" stroke-width="0.3" opacity="0.6"/>')
 
-    # Center emblem - compass-star, deliberately tiny and refined so it sits neatly inside r_small
-    parts.append(f'<circle cx="{cx}" cy="{cy}" r="11" fill="none" stroke="url(#gold)" stroke-width="0.3"/>')
-    parts.append(f'<circle cx="{cx}" cy="{cy}" r="7" fill="none" stroke="url(#gold)" stroke-width="0.25" opacity="0.6"/>')
-    for ang in (0, 90, 45, 135):
-        p1 = polar(cx, cy, 11, ang)
-        p2 = polar(cx, cy, 11, ang + 180)
-        parts.append(f'<line x1="{p1[0]:.1f}" y1="{p1[1]:.1f}" x2="{p2[0]:.1f}" y2="{p2[1]:.1f}" '
-                      f'stroke="url(#gold)" stroke-width="0.25"/>')
-    for ang in (0, 90, 180, 270):
-        tip = polar(cx, cy, 14, ang)
-        base1 = polar(cx, cy, 2, ang + 4)
-        base2 = polar(cx, cy, 2, ang - 4)
-        parts.append(f'<polygon points="{tip[0]:.1f},{tip[1]:.1f} {base1[0]:.1f},{base1[1]:.1f} '
-                      f'{cx},{cy} {base2[0]:.1f},{base2[1]:.1f}" fill="url(#gold)"/>')
-    parts.append(f'<circle cx="{cx}" cy="{cy}" r="1.3" fill="url(#gold)"/>')
+    # Center emblem - clean 4-point star ("sparkle"), small and refined, framed by a thin ring
+    parts.append(f'<circle cx="{cx}" cy="{cy}" r="24" fill="none" stroke="url(#gold)" stroke-width="0.3" opacity="0.6"/>')
+    star_r_out, star_r_in = 16, 4
+    star_pts = []
+    for k in range(8):
+        ang = k * 45
+        r = star_r_out if k % 2 == 0 else star_r_in
+        pt = polar(cx, cy, r, ang)
+        star_pts.append(f"{pt[0]:.1f},{pt[1]:.1f}")
+    parts.append(f'<polygon points="{" ".join(star_pts)}" fill="url(#gold)"/>')
 
     # Zodiac glyphs - bare symbol directly on the band, no circle/background
     for i, sign in enumerate(ZODIAC_SIGNS):
@@ -331,7 +329,7 @@ def render_chart_svg(natal_data):
         a = angle_for(h_longitude)
         is_angle = i in ANGLE_LABELS
         stroke = "url(#gold)" if is_angle else "#8C8570"
-        width = 0.6 if is_angle else 0.2
+        width = 0.35 if is_angle else 0.2
         opacity = 0.9 if is_angle else 0.3
         p_over = polar(cx, cy, r_outer + 6, a)
         parts.append(f'<line x1="{cx}" y1="{cy}" x2="{p_over[0]:.1f}" y2="{p_over[1]:.1f}" '
@@ -381,11 +379,11 @@ def render_chart_svg(natal_data):
         a_name, b_name = asp["point_a"], asp["point_b"]
         if a_name not in ring_point or b_name not in ring_point:
             continue
-        color, dash = ASPECT_STYLES.get(asp["aspect"], ("#5FA98F", None))
+        color, dash, width = ASPECT_STYLES.get(asp["aspect"], ("#5FA98F", None, 0.4))
         dash_attr = f' stroke-dasharray="{dash}"' if dash else ""
         pa, pb = ring_point[a_name], ring_point[b_name]
         parts.append(f'<line x1="{pa[0]:.1f}" y1="{pa[1]:.1f}" x2="{pb[0]:.1f}" y2="{pb[1]:.1f}" '
-                      f'stroke="{color}" stroke-width="0.4" opacity="0.8"{dash_attr}/>')
+                      f'stroke="{color}" stroke-width="{width}" opacity="0.9"{dash_attr}/>')
 
     # Planet glyphs - bare, delicate, no circle - live only in the wide gap between r_small and r_inner
     for name, lon in planet_longitude.items():
