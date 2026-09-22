@@ -388,13 +388,34 @@ def retro_mark(name, planet):
     return ""
 
 
+def badge_anchor(cx, cy, r, angle, degree_outward):
+    """
+    Where the ℞ / S sits. Default: lower-right of the glyph, like a subscript.
+    But if the planet's degree label lies in roughly that same direction
+    (degree_outward=True for the transit ring, False for the natal ring), the
+    mark slides ALONG the ring instead, to the lower tangential side - so the
+    mark and the degree can never overlap anywhere on the wheel.
+    """
+    gx, gy = polar(cx, cy, r, angle)
+    rad = math.radians(angle)
+    ux, uy = math.cos(rad), -math.sin(rad)          # radial unit vector (outward, screen coords)
+    if not degree_outward:
+        ux, uy = -ux, -uy
+    vx, vy = 0.79, 0.61                              # lower-right
+    if ux * vx + uy * vy < 0.45:
+        return gx + 4.3, gy + 3.4
+    tx, ty = -math.sin(rad), -math.cos(rad)         # tangent
+    sgn = 1 if (ty > 0.3 or (abs(ty) <= 0.3 and tx > 0)) else -1
+    return gx + sgn * tx * 5.6, gy + sgn * ty * 5.6 + 0.8
+
+
 def retro_badge(gx, gy, name, planet):
     """
     Hair-thin hand-drawn ℞ (an SVG path, not a font glyph, so the line weight is
     fully under our control) in the same pale gold as the planet glyphs, sitting
     as a tiny subscript at the lower-right of the glyph, with one faint glint on its tail.
     """
-    x, y = gx + 3.4, gy + 1.6          # top-left of the letter
+    x, y = gx - 1.2, gy - 1.6          # gx, gy = badge centre -> top-left of the letter
     if planet.get("station"):
         # hair-thin S: the planet has stopped and is about to turn (SR or SD)
         d = (f"M{x + 2.0:.2f},{y + 0.45:.2f} "
@@ -582,7 +603,7 @@ def render_chart_svg(natal_data, transit_data=None):
             parts.append(f'<text x="{g[0]:.1f}" y="{g[1]:.1f}" font-family="{SYMBOL_FONT}" font-size="8.5" '
                           f'fill="{TRANSIT_TONE}" text-anchor="middle" dominant-baseline="central">'
                           f'{PLANET_GLYPHS.get(name, "?")}</text>')
-            parts.append(retro_badge(g[0], g[1], name, tp))
+            parts.append(retro_badge(*badge_anchor(cx, cy, r_t_glyph, angle_for(t_display[name]), True), name, tp))
             parts.append(f'<text x="{d[0]:.1f}" y="{d[1]:.1f}" font-family="{LABEL_FONT}" font-size="3.8" '
                           f'fill="{TRANSIT_TONE_SOFT}" text-anchor="middle" dominant-baseline="central">'
                           f'{tp["degree_display"]}</text>')
@@ -624,7 +645,7 @@ def render_chart_svg(natal_data, transit_data=None):
         parts.append(f'<text x="{g[0]:.1f}" y="{g[1]:.1f}" font-family="{SYMBOL_FONT}" font-size="9" '
                       f'fill="#F4E4BC" text-anchor="middle" dominant-baseline="central">'
                       f'{PLANET_GLYPHS.get(name, "?")}</text>')
-        parts.append(retro_badge(g[0], g[1], name, natal_data["planets"][name]))
+        parts.append(retro_badge(*badge_anchor(cx, cy, r_glyph, a, False), name, natal_data["planets"][name]))
         parts.append(f'<text x="{d[0]:.1f}" y="{d[1]:.1f}" font-family="{LABEL_FONT}" font-size="4.2" '
                       f'fill="#B8A77A" text-anchor="middle" dominant-baseline="central">'
                       f'{natal_data["planets"][name]["degree_display"]}</text>')
