@@ -1,5 +1,6 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, Response
 import swisseph as swe
+import math
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
@@ -53,6 +54,32 @@ NATAL_ORBS = {
     "ascendant": 5, "midheaven": 5,
 }
 TRANSIT_ORB = 2  # flat orb for transit-to-natal aspects, matching Chronos's transit settings
+
+# ---- Chart rendering constants (agreed visual design: black bg, emerald-silver) ----
+ELEMENT_COLORS = {
+    "Aries": "#D9A441", "Leo": "#D9A441", "Sagittarius": "#D9A441",       # Fire
+    "Taurus": "#2F6B4F", "Virgo": "#2F6B4F", "Capricorn": "#2F6B4F",      # Earth
+    "Gemini": "#B8C9D9", "Libra": "#B8C9D9", "Aquarius": "#B8C9D9",       # Air
+    "Cancer": "#3E6E7A", "Scorpio": "#3E6E7A", "Pisces": "#3E6E7A",       # Water
+}
+ZODIAC_GLYPHS = {
+    "Aries": "&#9800;", "Taurus": "&#9801;", "Gemini": "&#9802;", "Cancer": "&#9803;",
+    "Leo": "&#9804;", "Virgo": "&#9805;", "Libra": "&#9806;", "Scorpio": "&#9807;",
+    "Sagittarius": "&#9808;", "Capricorn": "&#9809;", "Aquarius": "&#9810;", "Pisces": "&#9811;",
+}
+PLANET_GLYPHS = {
+    "sun": "&#9737;", "moon": "&#9789;", "mercury": "&#9791;", "venus": "&#9792;",
+    "mars": "&#9794;", "jupiter": "&#9795;", "saturn": "&#9796;", "uranus": "&#9797;",
+    "neptune": "&#9798;", "pluto": "&#9799;", "north_node": "&#9738;",
+    "south_node": "&#9739;", "lilith": "&#9912;",
+}
+ASPECT_COLORS = {
+    "conjunction": ("#D9F0E6", None),
+    "trine": ("#5FA98F", None),
+    "sextile": ("#5FA98F", None),
+    "square": ("#8A6A62", "3,3"),
+    "opposition": ("#8A6A62", "3,3"),
+}
 
 
 def degree_to_sign(longitude):
@@ -216,6 +243,181 @@ def calculate_houses(julian_day, latitude, longitude):
         "ascendant": ascendant_info,
         "midheaven": midheaven_info
     }
+
+
+def polar(cx, cy, r, angle_deg):
+    """Standard polar-to-cartesian helper, oriented so the chart rotates
+    the correct astrological direction (counter-clockwise from the Ascendant)."""
+    rad = math.radians(angle_deg)
+    return cx + r * math.cos(rad), cy - r * math.sin(rad)
+
+
+def render_chart_svg(natal_data):
+    """
+    Takes the dict /natal already returns (planets, houses, ascendant,
+    midheaven, aspects) and renders the agreed chart design: black
+    background, emerald-silver gradient rings, thin lines, element-tinted
+    zodiac wedges, zodiac glyphs in misty circles, bare planet glyphs
+    with degree labels, and colored aspect lines - built from real
+    trigonometry, not hand-guessed coordinates.
+    """
+    cx, cy = 200, 200
+    r_outer, r_inner, r_planet_a, r_planet_b = 185, 165, 130, 108
+
+    asc_sign_index = ZODIAC_SIGNS.index(natal_data["ascendant"]["sign"])
+    asc_longitude = asc_sign_index * 30 + natal_data["ascendant"]["degree"]
+
+    def angle_for(longitude):
+        return (180 + (longitude - asc_longitude)) % 360
+
+    parts = ['<svg viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">']
+    parts.append('<defs><linearGradient id="es" x1="0" y1="0" x2="1" y2="1">'
+                  '<stop offset="0" stop-color="#0F3D30"/><stop offset="0.5" stop-color="#5FA98F"/>'
+                  '<stop offset="1" stop-color="#D9F0E6"/></linearGradient></defs>')
+    parts.append('<rect x="0" y="0" width="400" height="400" fill="#000000"/>')
+
+    # Element-tinted zodiac wedges (quads, not arcs - visually identical at 30 degrees, no distortion risk)
+    for i, sign in enumerate(ZODIAC_SIGNS):
+        a1, a2 = angle_for(i * 30), angle_for((i + 1) * 30)
+        p1i, p2i = polar(cx, cy, r_inner, a1), polar(cx, cy, r_inner, a2)
+        p1o, p2o = polar(cx, cy, r_outer, a1), polar(cx, cy, r_outer, a2)
+        parts.append(f'<path d="M{p1i[0]:.1f},{p1i[1]:.1f} L{p2i[0]:.1f},{p2i[1]:.1f} '
+                      f'L{p2o[0]:.1f},{p2o[1]:.1f} L{p1o[0]:.1f},{p1o[1]:.1f} Z" '
+                      f'fill="{ELEMENT_COLORS[sign]}" opacity="0.15"/>')
+
+    parts.append(f'<circle cx="{cx}" cy="{cy}" r="{r_outer}" fill="none" stroke="url(#es)" stroke-width="0.4"/>')
+    parts.append(f'<circle cx="{cx}" cy="{cy}" r="{r_inner}" fill="none" stroke="url(#es)" stroke-width="0.3" opacity="0.7"/>')
+
+    # House spokes + cusp degree labels
+    for i in range(1, 13):
+        h = natal_data["houses"][f"house_{i}"]
+        h_longitude = ZODIAC_SIGNS.index(h["sign"]) * 30 + h["degree_in_sign"]
+        a = angle_for(h_longitude)
+        p_out = polar(cx, cy, r_inner, a)
+        is_angle = i in (1, 4, 7, 10)
+        stroke = "url(#es)" if is_angle else "#2E5C4E"
+        width = 0.5 if is_angle else 0.25
+        parts.append(f'<line x1="{cx}" y1="{cy}" x2="{p_out[0]:.1f}" y2="{p_out[1]:.1f}" '
+                      f'stroke="{stroke}" stroke-width="{width}"/>')
+        p_label = polar(cx, cy, r_inner + 7, a)
+        parts.append(f'<text x="{p_label[0]:.1f}" y="{p_label[1]:.1f}" font-family="var(--font-voice)" '
+                      f'font-size="6.5" fill="#4E8776" text-anchor="middle">{format_dms(h["degree_in_sign"])}</text>')
+
+    # Zodiac glyphs in misty circles
+    for i, sign in enumerate(ZODIAC_SIGNS):
+        a = angle_for(i * 30 + 15)
+        p = polar(cx, cy, (r_outer + r_inner) / 2, a)
+        parts.append(f'<circle cx="{p[0]:.1f}" cy="{p[1]:.1f}" r="11" fill="#5FA98F" opacity="0.16" '
+                      f'stroke="#8FCBB8" stroke-width="0.4"/>')
+        parts.append(f'<text x="{p[0]:.1f}" y="{p[1]:.1f}" font-family="var(--font-voice)" font-size="13" '
+                      f'fill="#EAF7F1" text-anchor="middle" dominant-baseline="central">{ZODIAC_GLYPHS[sign]}</text>')
+
+    # Planet longitudes + automatic radius alternation to avoid overlapping labels when planets cluster
+    planet_longitude = {
+        name: ZODIAC_SIGNS.index(p["sign"]) * 30 + p["degree_in_sign"]
+        for name, p in natal_data["planets"].items()
+    }
+    ordered = sorted(planet_longitude.items(), key=lambda kv: kv[1])
+    radii, last_lon, current_r = {}, None, r_planet_a
+    for name, lon in ordered:
+        if last_lon is not None:
+            gap = min((lon - last_lon) % 360, (last_lon - lon) % 360)
+            current_r = (r_planet_b if current_r == r_planet_a else r_planet_a) if gap < 10 else r_planet_a
+        radii[name] = current_r
+        last_lon = lon
+
+    # Aspect lines (drawn before glyphs so glyphs sit on top)
+    for asp in natal_data.get("aspects", []):
+        a_name, b_name = asp["point_a"], asp["point_b"]
+        if a_name not in planet_longitude or b_name not in planet_longitude:
+            continue
+        color, dash = ASPECT_COLORS.get(asp["aspect"], ("#5FA98F", None))
+        pa = polar(cx, cy, radii[a_name], angle_for(planet_longitude[a_name]))
+        pb = polar(cx, cy, radii[b_name], angle_for(planet_longitude[b_name]))
+        dash_attr = f' stroke-dasharray="{dash}"' if dash else ""
+        parts.append(f'<line x1="{pa[0]:.1f}" y1="{pa[1]:.1f}" x2="{pb[0]:.1f}" y2="{pb[1]:.1f}" '
+                      f'stroke="{color}" stroke-width="0.5"{dash_attr}/>')
+
+    # Planet glyphs + degree labels
+    for name, lon in planet_longitude.items():
+        a = angle_for(lon)
+        r = radii[name]
+        p = polar(cx, cy, r, a)
+        parts.append(f'<text x="{p[0]:.1f}" y="{p[1]:.1f}" font-family="var(--font-voice)" font-size="13" '
+                      f'fill="#D9F0E6" text-anchor="middle" dominant-baseline="central">'
+                      f'{PLANET_GLYPHS.get(name, "?")}</text>')
+        p_label = polar(cx, cy, r - 14, a)
+        parts.append(f'<text x="{p_label[0]:.1f}" y="{p_label[1]:.1f}" font-family="var(--font-voice)" '
+                      f'font-size="6.2" fill="#4E8776" text-anchor="middle">'
+                      f'{natal_data["planets"][name]["degree_display"]}</text>')
+
+    parts.append('</svg>')
+    return "".join(parts)
+
+
+@app.route("/chart-svg", methods=["POST"])
+def chart_svg():
+    """
+    Expects the same JSON body as /natal. Returns the rendered chart
+    as raw SVG (content-type image/svg+xml) - Make can pass this
+    straight to an SVG-to-PNG conversion step (e.g. Cloudinary) before
+    sending it to the user via Telegram.
+    """
+    data = request.get_json()
+    jd = local_time_to_julian_day(
+        data["year"], data["month"], data["day"],
+        data["hour"], data["minute"], data["timezone_name"]
+    )
+    planets = calculate_planets(jd)
+    house_data = calculate_houses(jd, data["latitude"], data["longitude"])
+    aspect_points = {name: p["longitude"] for name, p in planets.items()}
+    aspect_points["ascendant"] = house_data["ascendant"]["degree"] + ZODIAC_SIGNS.index(house_data["ascendant"]["sign"]) * 30
+    aspect_points["midheaven"] = house_data["midheaven"]["degree"] + ZODIAC_SIGNS.index(house_data["midheaven"]["sign"]) * 30
+    aspects = calculate_aspects(aspect_points)
+
+    natal_data = {
+        "planets": planets,
+        "houses": house_data["houses"],
+        "ascendant": house_data["ascendant"],
+        "midheaven": house_data["midheaven"],
+        "aspects": aspects
+    }
+    svg = render_chart_svg(natal_data)
+    return Response(svg, mimetype="image/svg+xml")
+
+
+@app.route("/test-chart-svg", methods=["GET"])
+def test_chart_svg():
+    """
+    Browser-friendly test route - opens directly as an image. Example:
+    /test-chart-svg?year=1984&month=12&day=20&hour=16&minute=6&timezone_name=Europe/Kyiv&latitude=49.57&longitude=25.60
+    """
+    year = int(request.args.get("year"))
+    month = int(request.args.get("month"))
+    day = int(request.args.get("day"))
+    hour = int(request.args.get("hour"))
+    minute = int(request.args.get("minute"))
+    timezone_name = request.args.get("timezone_name")
+    latitude = float(request.args.get("latitude"))
+    longitude = float(request.args.get("longitude"))
+
+    jd = local_time_to_julian_day(year, month, day, hour, minute, timezone_name)
+    planets = calculate_planets(jd)
+    house_data = calculate_houses(jd, latitude, longitude)
+    aspect_points = {name: p["longitude"] for name, p in planets.items()}
+    aspect_points["ascendant"] = house_data["ascendant"]["degree"] + ZODIAC_SIGNS.index(house_data["ascendant"]["sign"]) * 30
+    aspect_points["midheaven"] = house_data["midheaven"]["degree"] + ZODIAC_SIGNS.index(house_data["midheaven"]["sign"]) * 30
+    aspects = calculate_aspects(aspect_points)
+
+    natal_data = {
+        "planets": planets,
+        "houses": house_data["houses"],
+        "ascendant": house_data["ascendant"],
+        "midheaven": house_data["midheaven"],
+        "aspects": aspects
+    }
+    svg = render_chart_svg(natal_data)
+    return Response(svg, mimetype="image/svg+xml")
 
 
 @app.route("/natal", methods=["POST"])
