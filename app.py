@@ -81,17 +81,17 @@ PLANET_GLYPHS = {
 # Aspect styling: (core colour, facet highlight, dash, width, glitter density)
 # Major aspects = solid bordeaux-plum "jewel" lines (fire-wedge hue family);
 # soft / minor aspects = dashed emerald (earth) or sapphire (air) with finer glitter.
-BORDEAUX = ("#6B1631", "#C0587A")
-EMERALD = ("#2E7D5B", "#8FD9B6")
-SAPPHIRE = ("#3A5BA6", "#9DB6F0")
+BORDEAUX = ("#56122B", "#94445F")
+EMERALD = ("#1E5C45", "#63A58A")
+SAPPHIRE = ("#294583", "#738CC4")
 ASPECT_STYLES = {
-    "conjunction": ("#C9A94E", "#F4E4BC", None, 0.45, 0.0),
-    "opposition": (BORDEAUX[0], BORDEAUX[1], None, 0.7, 1.0),
-    "square": (BORDEAUX[0], BORDEAUX[1], None, 0.7, 1.0),
-    "trine": (BORDEAUX[0], BORDEAUX[1], None, 0.6, 1.0),
-    "sextile": (EMERALD[0], EMERALD[1], "1.4,1.6", 0.45, 0.6),
-    "semisextile": (SAPPHIRE[0], SAPPHIRE[1], "1.4,1.6", 0.4, 0.5),
-    "quincunx": (SAPPHIRE[0], SAPPHIRE[1], "1.4,1.6", 0.4, 0.5),
+    "conjunction": ("#C9A94E", "#F4E4BC", None, 0.25, 0.0),
+    "opposition": (BORDEAUX[0], BORDEAUX[1], None, 0.42, 1.0),
+    "square": (BORDEAUX[0], BORDEAUX[1], None, 0.42, 1.0),
+    "trine": (BORDEAUX[0], BORDEAUX[1], None, 0.38, 1.0),
+    "sextile": (EMERALD[0], EMERALD[1], "1.2,1.5", 0.28, 0.6),
+    "semisextile": (SAPPHIRE[0], SAPPHIRE[1], "1.2,1.5", 0.25, 0.5),
+    "quincunx": (SAPPHIRE[0], SAPPHIRE[1], "1.2,1.5", 0.25, 0.5),
 }
 SYMBOL_FONT = "'Noto Sans Symbols 2','Noto Sans Symbols','Segoe UI Symbol','DejaVu Sans',sans-serif"
 LABEL_FONT = "'Cormorant Garamond','Cormorant','Times New Roman',serif"
@@ -371,6 +371,12 @@ def render_chart_svg(natal_data):
         '<feGaussianBlur stdDeviation="0.9"/></filter>'
         '<filter id="softglow" filterUnits="userSpaceOnUse" x="-20" y="-20" width="440" height="440">'
         '<feGaussianBlur stdDeviation="1.6"/></filter>'
+        '<filter id="mist" filterUnits="userSpaceOnUse" x="-20" y="-20" width="440" height="440">'
+        '<feGaussianBlur stdDeviation="1.3"/></filter>'
+        '<radialGradient id="fog" cx="0.5" cy="0.5" r="0.5">'
+        '<stop offset="0" stop-color="#E8CF8A" stop-opacity="0.13"/>'
+        '<stop offset="0.55" stop-color="#C9A94E" stop-opacity="0.05"/>'
+        '<stop offset="1" stop-color="#C9A94E" stop-opacity="0"/></radialGradient>'
         '</defs>'
     )
     parts.append('<rect x="-20" y="-20" width="440" height="440" fill="#050303"/>')
@@ -420,16 +426,16 @@ def render_chart_svg(natal_data):
         if a_name not in ring_point or b_name not in ring_point:
             continue
         core, facet, dash, width, sparkle = ASPECT_STYLES.get(
-            asp["aspect"], (SAPPHIRE[0], SAPPHIRE[1], "1.4,1.6", 0.4, 0.5))
+            asp["aspect"], (SAPPHIRE[0], SAPPHIRE[1], "1.2,1.5", 0.25, 0.5))
         (x1, y1), (x2, y2) = ring_point[a_name], ring_point[b_name]
         dash_attr = f' stroke-dasharray="{dash}"' if dash else ""
         line = f'x1="{x1:.2f}" y1="{y1:.2f}" x2="{x2:.2f}" y2="{y2:.2f}"'
         if sparkle:
-            parts.append(f'<line {line} stroke="{core}" stroke-width="{width * 3.2:.2f}" '
-                          f'opacity="0.45" filter="url(#glow)"{dash_attr}/>')
+            parts.append(f'<line {line} stroke="{core}" stroke-width="{width * 3.0:.2f}" '
+                          f'opacity="0.35" filter="url(#glow)"{dash_attr}/>')
         parts.append(f'<line {line} stroke="{core}" stroke-width="{width}" opacity="0.95"{dash_attr}/>')
         if sparkle:
-            parts.append(f'<line {line} stroke="{facet}" stroke-width="{width * 0.3:.2f}" opacity="0.7"{dash_attr}/>')
+            parts.append(f'<line {line} stroke="{facet}" stroke-width="{width * 0.28:.2f}" opacity="0.5"{dash_attr}/>')
             # deterministic glitter: same chart -> same sparkles every render
             rng = random.Random(f"{a_name}-{b_name}-{asp['aspect']}")
             length = math.hypot(x2 - x1, y2 - y1)
@@ -437,9 +443,9 @@ def render_chart_svg(natal_data):
             for _ in range(count):
                 t = rng.uniform(0.08, 0.92)
                 sx, sy = x1 + (x2 - x1) * t, y1 + (y2 - y1) * t
-                size = rng.uniform(0.7, 1.7) * (1 if not dash else 0.8)
-                tint = rng.choice(["#FFF4E0", facet, "#FFFFFF"])
-                parts.append(_sparkle(sx, sy, size, tint, rng.uniform(0.55, 0.95)))
+                size = rng.uniform(0.5, 1.25) * (1 if not dash else 0.8)
+                tint = rng.choice(["#F6E7C8", facet, "#FFF4E0"])
+                parts.append(_sparkle(sx, sy, size, tint, rng.uniform(0.45, 0.85)))
 
     # ---- Exact-degree dots + thin leader to the (possibly shifted) glyph ----
     for name, lon in planet_longitude.items():
@@ -486,18 +492,32 @@ def render_chart_svg(natal_data):
                       f'fill="#B8A77A" text-anchor="middle" dominant-baseline="central">'
                       f'{natal_data["planets"][name]["degree_display"]}</text>')
 
-    # ---- House labels: number and cusp degree stacked, never overlapping ----
+    # ---- House labels: stacked number + degree, wrapped in the same golden mist as the moon ----
     for i, (a, h) in cusp_angles.items():
         is_angle = i in ANGLE_LABELS
         p = polar(cx, cy, r_outer + 15, a)
         label = ANGLE_LABELS[i] if is_angle else ROMAN_NUMERALS[i - 1]
-        parts.append(f'<text x="{p[0]:.1f}" y="{p[1] - 2.9:.1f}" font-family="{LABEL_FONT}" '
-                      f'font-size="{6.2 if is_angle else 5.8}" fill="{ANTIQUE_GOLD}" '
-                      f'opacity="{0.85 if is_angle else 0.7}" text-anchor="middle" dominant-baseline="central">'
-                      f'{label}</text>')
-        parts.append(f'<text x="{p[0]:.1f}" y="{p[1] + 3.6:.1f}" font-family="{LABEL_FONT}" font-size="3.9" '
-                      f'fill="{ANTIQUE_GOLD}" opacity="0.55" text-anchor="middle" dominant-baseline="central">'
-                      f'{format_dms(h["degree_in_sign"])}</text>')
+        size = 6.2 if is_angle else 5.8
+        ly, dy = p[1] - 2.9, p[1] + 3.6
+        deg_txt = format_dms(h["degree_in_sign"])
+        # soft fog cloud behind the pair
+        parts.append(f'<ellipse cx="{p[0]:.1f}" cy="{p[1]:.1f}" rx="12" ry="9" fill="url(#fog)"/>')
+        # blurred glowing copy (the haze), then the crisp text on top
+        parts.append(f'<text x="{p[0]:.1f}" y="{ly:.1f}" font-family="{LABEL_FONT}" font-size="{size}" '
+                      f'fill="#F1D78E" stroke="#F1D78E" stroke-width="0.6" opacity="0.55" filter="url(#mist)" '
+                      f'text-anchor="middle" dominant-baseline="central">{label}</text>')
+        parts.append(f'<text x="{p[0]:.1f}" y="{ly:.1f}" font-family="{LABEL_FONT}" font-size="{size}" '
+                      f'fill="{ANTIQUE_GOLD}" opacity="{0.9 if is_angle else 0.78}" text-anchor="middle" '
+                      f'dominant-baseline="central">{label}</text>')
+        parts.append(f'<text x="{p[0]:.1f}" y="{dy:.1f}" font-family="{LABEL_FONT}" font-size="3.9" '
+                      f'fill="#F1D78E" opacity="0.35" filter="url(#mist)" text-anchor="middle" '
+                      f'dominant-baseline="central">{deg_txt}</text>')
+        parts.append(f'<text x="{p[0]:.1f}" y="{dy:.1f}" font-family="{LABEL_FONT}" font-size="3.9" '
+                      f'fill="{ANTIQUE_GOLD}" opacity="0.6" text-anchor="middle" dominant-baseline="central">'
+                      f'{deg_txt}</text>')
+        # one faint star-glint beside each numeral, echoing the stars by the moon
+        half_w = len(label) * size * 0.3
+        parts.append(_sparkle(p[0] + half_w + 1.8, ly - 2.6, 0.9 if is_angle else 0.75, "#F6E7C8", 0.6))
 
     parts.append('</svg>')
     return "".join(parts)
