@@ -900,7 +900,7 @@ def render_chart_svg(natal_data, transit_data=None):
     parts.append(svg_text("elix", sig_x, sig_y, sig_size, "logo", ANTIQUE_GOLD, 0.85,
                           anchor="start", baseline="central"))
     x_right = sig_x + text_width("elix", sig_size, "logo")
-    parts.append(constellation_hat(x_right - sig_size * 0.2, sig_y - sig_size * 0.3, sig_size * 0.03))
+    parts.append(constellation_hat(x_right - sig_size * 0.06, sig_y - sig_size * 0.19, sig_size * 0.03, rot=26))
 
     # ---- Transit band outside the zodiac: rose-gold glyphs, tick at exact degree ----
     if has_transits:
