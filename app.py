@@ -400,7 +400,7 @@ def badge_anchor(cx, cy, r, angle, degree_outward):
     ux, uy = math.cos(rad), -math.sin(rad)
     if not degree_outward:
         ux, uy = -ux, -uy
-    candidates = [(5.3, 4.3), (-6.0, 4.3), (-7.2, 1.2), (5.3, -4.6)]
+    candidates = [(5.3, 4.3), (-7.4, 3.9), (-8.2, 1.0), (5.3, -4.6)]
     for dx, dy in candidates:
         n = math.hypot(dx, dy)
         if (ux * dx + uy * dy) / n < 0.35:
@@ -416,16 +416,17 @@ def retro_badge(gx, gy, name, planet):
     """
     x, y = gx - 1.2, gy - 1.6          # gx, gy = badge centre -> top-left of the letter
     if planet.get("station"):
-        # hair-thin italic S with soft curled terminals, drawn as a path (slanted like a serif italic)
-        pts = [(2.35, 0.55), (2.05, 0.0), (0.95, -0.05), (0.62, 0.5), (0.3, 1.1), (0.9, 1.5), (1.4, 1.75),
-               (2.0, 2.05), (2.2, 2.6), (1.8, 3.1), (1.4, 3.55), (0.4, 3.45), (0.0, 2.9)]
-        pts = [(x + px + (3.4 - py) * 0.16, y + py) for px, py in pts]
-        d = f"M{pts[0][0]:.2f},{pts[0][1]:.2f} " + " ".join(
-            f"C{pts[i][0]:.2f},{pts[i][1]:.2f} {pts[i + 1][0]:.2f},{pts[i + 1][1]:.2f} {pts[i + 2][0]:.2f},{pts[i + 2][1]:.2f}"
-            for i in range(1, len(pts), 3))
+        # hair-thin upright S crossed by a fine vertical stem, like a "$",
+        # with one glint at the end of the lower tail
+        # hourglass S: slim pinched waist in the middle, rounder fuller lower bowl
+        d = (f"M{x + 1.75:.2f},{y + 0.45:.2f} "
+             f"C{x + 1.55:.2f},{y + 0.02:.2f} {x + 0.18:.2f},{y + 0.0:.2f} {x + 0.3:.2f},{y + 0.82:.2f} "
+             f"C{x + 0.44:.2f},{y + 1.3:.2f} {x + 1.0:.2f},{y + 1.45:.2f} {x + 1.12:.2f},{y + 1.6:.2f} "
+             f"C{x + 2.15:.2f},{y + 1.95:.2f} {x + 2.25:.2f},{y + 2.45:.2f} {x + 2.08:.2f},{y + 2.85:.2f} "
+             f"C{x + 1.8:.2f},{y + 3.4:.2f} {x + 0.4:.2f},{y + 3.42:.2f} {x + 0.05:.2f},{y + 2.8:.2f}")
         return (f'<path d="{d}" fill="none" stroke="#F4E4BC" stroke-width="0.24" '
                 f'stroke-linecap="round" stroke-linejoin="round" opacity="0.95"/>'
-                + _sparkle(x + 3.05, y + 0.3, 0.45, "#FFF6DC", 0.8))
+                + _sparkle(x - 0.1, y + 3.6, 0.45, "#FFF6DC", 0.8))
     if not retro_mark(name, planet):
         return ""
     d = (f"M{x:.2f},{y:.2f} V{y + 3.2:.2f} "                              # stem
