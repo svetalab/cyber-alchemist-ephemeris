@@ -1295,5 +1295,114 @@ def test_solar_return():
     })
 
 
+# ============================================================================
+# ASTRO-PASSPORT: data for the Telegram Mini App
+# The Mini App sends Telegram's initData; the server checks its signature with
+# BOT_TOKEN, takes the user id from it and reads ONLY that user's row from
+# Airtable. Tokens stay on the server (Railway variables), never in the page.
+# ============================================================================
+import hmac
+import hashlib
+import json
+import urllib.parse
+import urllib.request
+
+AIRTABLE_TOKEN = os.environ.get("AIRTABLE_TOKEN", "")
+AIRTABLE_BASE_ID = os.environ.get("AIRTABLE_BASE_ID", "")
+BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
+PASSPORT_TEST_KEY = os.environ.get("PASSPORT_TEST_KEY", "")   # empty -> browser test path is OFF
+INIT_DATA_MAX_AGE = 24 * 3600                                  # initData older than a day is refused
+
+PASSPORT_FIELDS = [
+    "name", "language", "birth_date", "birth_time", "birth_place", "timezone", "time_known",
+    "sun_sign", "moon_sign", "asc_sign", "moon_phase", "figures", "chart_url",
+    "stage", "stage_progress", "stage_started", "opus", "session_count",
+]
+
+
+def verify_init_data(init_data):
+    """Telegram Mini App signature check. Returns the Telegram user dict or None."""
+    if not init_data or not BOT_TOKEN:
+        return None
+    pairs = dict(urllib.parse.parse_qsl(init_data, keep_blank_values=True))
+    received_hash = pairs.pop("hash", "")
+    check_string = "\n".join(f"{k}={pairs[k]}" for k in sorted(pairs))
+    secret = hmac.new(b"WebAppData", BOT_TOKEN.encode(), hashlib.sha256).digest()
+    expected = hmac.new(secret, check_string.encode(), hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(expected, received_hash):
+        return None
+    try:
+        if datetime.now(timezone.utc).timestamp() - int(pairs.get("auth_date", 0)) > INIT_DATA_MAX_AGE:
+            return None
+        return json.loads(pairs.get("user", "{}")) or None
+    except (ValueError, TypeError):
+        return None
+
+
+def airtable_user(user_id):
+    """One row from Users by user_id (works whether the field is text or number)."""
+    formula = f"{{user_id}}&''='{int(user_id)}'"
+    query = urllib.parse.urlencode({"filterByFormula": formula, "maxRecords": 1})
+    url = f"https://api.airtable.com/v0/{AIRTABLE_BASE_ID}/Users?{query}"
+    req = urllib.request.Request(url, headers={"Authorization": f"Bearer {AIRTABLE_TOKEN}"})
+    with urllib.request.urlopen(req, timeout=10) as r:
+        records = json.loads(r.read().decode()).get("records", [])
+    return records[0]["fields"] if records else None
+
+
+def sky_now(f):
+    """Current transits to the user's natal chart; None if birth data is incomplete."""
+    try:
+        d, m, y = (int(x) for x in str(f["birth_date"]).split("."))
+        tk = bool(f.get("time_known"))
+        hh, mm = (int(x) for x in str(f.get("birth_time") or "12:00").split(":")) if tk else (12, 0)
+        natal = build_natal_data(y, m, d, hh, mm, f["timezone"], float(f["latitude"]), float(f["longitude"]),
+                                 time_known=tk)
+        t = build_transit_data(natal["planets"], lang=f.get("language", "ua"))
+        return {
+            "planets": {n: {"sign": p["sign"], "degree_display": p["degree_display"],
+                            "retrograde": p.get("retrograde", False)} for n, p in t["planets"].items()},
+            "aspects": t["aspects"],
+        }
+    except (KeyError, ValueError, TypeError):
+        return None
+
+
+def passport_payload(user_id):
+    f = airtable_user(user_id)
+    if f is None:
+        return None
+    out = {k: f.get(k) for k in PASSPORT_FIELDS}
+    out["time_known"] = bool(f.get("time_known"))
+    out["stage"] = f.get("stage") or "nigredo"
+    out["stage_progress"] = f.get("stage_progress") or 0
+    out["opus"] = f.get("opus") or 1
+    out["sky_now"] = sky_now(f)
+    return out
+
+
+@app.route("/passport-data", methods=["POST"])
+def passport_data():
+    """Body: {"init_data": Telegram.WebApp.initData}. Returns the owner's Passport data."""
+    user = verify_init_data((request.get_json(silent=True) or {}).get("init_data", ""))
+    if not user:
+        return jsonify({"error": "unauthorized"}), 401
+    data = passport_payload(user["id"])
+    if data is None:
+        return jsonify({"error": "not_found"}), 404
+    return jsonify(data)
+
+
+@app.route("/test-passport-data", methods=["GET"])
+def test_passport_data():
+    """Browser check without Telegram: ?user_id=...&key=PASSPORT_TEST_KEY. Off when the key is not set."""
+    if not PASSPORT_TEST_KEY or request.args.get("key") != PASSPORT_TEST_KEY:
+        return jsonify({"error": "disabled"}), 403
+    data = passport_payload(request.args.get("user_id", "0"))
+    if data is None:
+        return jsonify({"error": "not_found"}), 404
+    return jsonify(data)
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
