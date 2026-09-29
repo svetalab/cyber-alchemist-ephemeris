@@ -57,7 +57,7 @@ body{margin:0;background:var(--bg);color:var(--text);font:400 15px/1.55 var(--sa
 
 /* chart */
 .chart{margin:30px -18px 0;background:var(--bg)}
-.chart img{display:block;width:100%;height:auto}
+.chart img,.chart svg{display:block;width:100%;height:auto}
 
 /* sections */
 section{margin-top:34px}
@@ -254,7 +254,9 @@ function render(d){
   requestAnimationFrame(() => requestAnimationFrame(() => { $("bar").style.width = pr + "%"; }));
 
   // Chart
-  if (d.chart_url){ $("chart").src = d.chart_url; $("chart").alt = `${t.three}: ${d.name || ""}`; }
+  const svg = d.natal && d.natal.chart_svg;
+  if (svg){ $("chartBox").innerHTML = svg; const el = $("chartBox").querySelector("svg"); if (el){ el.setAttribute("role","img"); el.setAttribute("aria-label", d.name || "chart"); } }
+  else if (d.chart_url){ $("chart").src = d.chart_url; $("chart").alt = d.name || ""; }
   else $("chartBox").hidden = true;
 
   // Big three (unknown time: birth Moon phase instead of the Ascendant)
@@ -268,7 +270,7 @@ function render(d){
   const facts = [];
   if (d.time_known && phaseName) facts.push(`<div><b>${t.born_phase}:</b> ${esc(phaseName)}</div>`);
   const figs = (d.natal && d.natal.figures) || [];
-  if (figs.length) facts.push(`<div><b>${t.figures}:</b> ${figs.map(f => esc(lang === "en" ? f.name_en : f.name_ua)).join(", ")}</div>`);
+  if (figs.length) facts.push(`<div><b>${t.figures}:</b> ${[...new Set(figs.map(f => lang === "en" ? f.name_en : f.name_ua))].map(esc).join(", ")}</div>`);
   $("facts").innerHTML = facts.join("");
 
   // Sky now
