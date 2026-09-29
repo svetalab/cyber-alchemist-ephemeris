@@ -1351,21 +1351,31 @@ def airtable_user(user_id):
 
 
 def sky_now(f):
-    """Current transits to the user's natal chart; None if birth data is incomplete."""
+    """Natal extras + current transits for the Passport; (None, None) if birth data is incomplete."""
     try:
         d, m, y = (int(x) for x in str(f["birth_date"]).split("."))
         tk = bool(f.get("time_known"))
         hh, mm = (int(x) for x in str(f.get("birth_time") or "12:00").split(":")) if tk else (12, 0)
         natal = build_natal_data(y, m, d, hh, mm, f["timezone"], float(f["latitude"]), float(f["longitude"]),
                                  time_known=tk)
+        seen, figures = set(), []
+        for fig in natal.get("figures", []):
+            if fig["name_en"] == "Aspect figure":
+                continue          # unnamed triangles stay on the chart, not in the Passport list
+            key = (fig["name_en"], tuple(sorted(fig["points"])))
+            if key not in seen:
+                seen.add(key)
+                figures.append({"name_ua": fig["name_ua"], "name_en": fig["name_en"], "points": fig["points"]})
+        extras = {"figures": figures, "moon_phase": natal.get("birth_moon_phase")}
         t = build_transit_data(natal["planets"], lang=f.get("language", "ua"))
-        return {
+        sky = {
             "planets": {n: {"sign": p["sign"], "degree_display": p["degree_display"],
                             "retrograde": p.get("retrograde", False)} for n, p in t["planets"].items()},
             "aspects": t["aspects"],
         }
+        return extras, sky
     except (KeyError, ValueError, TypeError):
-        return None
+        return None, None
 
 
 def passport_payload(user_id):
@@ -1377,7 +1387,7 @@ def passport_payload(user_id):
     out["stage"] = f.get("stage") or "nigredo"
     out["stage_progress"] = f.get("stage_progress") or 0
     out["opus"] = f.get("opus") or 1
-    out["sky_now"] = sky_now(f)
+    out["natal"], out["sky_now"] = sky_now(f)
     return out
 
 
@@ -1391,6 +1401,14 @@ def passport_data():
     if data is None:
         return jsonify({"error": "not_found"}), 404
     return jsonify(data)
+
+
+@app.route("/passport", methods=["GET"])
+def passport_page():
+    """The Astro-Passport Mini App page (passport.html next to app.py)."""
+    here = os.path.dirname(os.path.abspath(__file__))
+    with open(os.path.join(here, "passport.html"), encoding="utf-8") as fh:
+        return Response(fh.read(), mimetype="text/html")
 
 
 @app.route("/test-passport-data", methods=["GET"])
