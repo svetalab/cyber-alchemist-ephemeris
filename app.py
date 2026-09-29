@@ -1307,10 +1307,10 @@ import json
 import urllib.parse
 import urllib.request
 
-AIRTABLE_TOKEN = os.environ.get("AIRTABLE_TOKEN", "")
-AIRTABLE_BASE_ID = os.environ.get("AIRTABLE_BASE_ID", "")
-BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
-PASSPORT_TEST_KEY = os.environ.get("PASSPORT_TEST_KEY", "")   # empty -> browser test path is OFF
+AIRTABLE_TOKEN = os.environ.get("AIRTABLE_TOKEN", "").strip()
+AIRTABLE_BASE_ID = os.environ.get("AIRTABLE_BASE_ID", "").strip()
+BOT_TOKEN = os.environ.get("BOT_TOKEN", "").strip()
+PASSPORT_TEST_KEY = os.environ.get("PASSPORT_TEST_KEY", "").strip()   # empty -> browser test path is OFF
 INIT_DATA_MAX_AGE = 24 * 3600                                  # initData older than a day is refused
 
 PASSPORT_FIELDS = [
