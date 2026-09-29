@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>elix · Астро-Паспорт</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&family=Cormorant+SC:wght@500&family=Courier+Prime:wght@700&family=IBM+Plex+Mono:wght@400&family=IBM+Plex+Sans:wght@400;500&family=Noto+Sans+Symbols+2&family=Noto+Sans+Symbols&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#070605; --panel:#0F0C0A; --line:rgba(205,174,114,.18);
+  --gold:#CDAE72; --gold-hi:#F4E4BC; --gold-lo:#D4AF37;
+  --text:#EDE3CC; --muted:#9C8F77; --wine:#3A1420; --peacock:#0B3B45; --indigo:#1D2548; --plum:#241730;
+  --amethyst:#B89CDB;
+  --serif:'Cormorant Garamond',Georgia,serif; --sc:'Cormorant SC','Cormorant Garamond',Georgia,serif;
+  --sans:'IBM Plex Sans',system-ui,sans-serif; --mono:'IBM Plex Mono',ui-monospace,monospace;
+  --sym:'Noto Sans Symbols 2','Noto Sans Symbols','Segoe UI Symbol','DejaVu Sans',sans-serif;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+*,*::before,*::after{box-sizing:inherit}
+html{background:var(--bg)}
+body{margin:0;background:var(--bg);color:var(--text);font:400 15px/1.55 var(--sans);-webkit-font-smoothing:antialiased}
+.wrap{max-width:460px;margin:0 auto;padding:18px 18px 110px}
+.sym{font-family:var(--sym);font-variant-emoji:text}
+
+/* top bar */
+.top{display:flex;align-items:center;justify-content:space-between;margin-bottom:26px}
+.wordmark{height:40px;width:auto;display:block}
+.flask{width:30px;height:30px}
+
+/* owner */
+.owner h1{font:500 34px/1.05 var(--sc);letter-spacing:.06em;margin:0;color:var(--gold-hi)}
+.owner p{margin:8px 0 0;color:var(--muted);font-size:13px}
+
+/* opus: the memorable element */
+.opus{margin:30px 0 8px;padding:22px 0 4px;border-top:1px solid var(--line)}
+.opus-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:18px}
+.opus-head h2{font:400 22px/1 var(--serif);margin:0;color:var(--gold-hi)}
+.opus-head span{font:400 12px var(--mono);color:var(--muted)}
+.track{position:relative;display:grid;grid-template-columns:repeat(4,1fr);text-align:center}
+.track::before{content:"";position:absolute;left:12.5%;right:12.5%;top:27px;height:1px;background:var(--line)}
+.stage{position:relative;background:none;border:0;padding:0;color:inherit;font:inherit;cursor:pointer}
+.stage:focus-visible{outline:1px solid var(--gold);outline-offset:4px;border-radius:6px}
+.drop{position:relative;width:54px;height:54px;margin:0 auto;display:grid;place-items:center;background:var(--bg);border-radius:50%}
+.stage.current .drop{box-shadow:0 0 0 1px var(--gold),0 0 18px rgba(212,175,55,.28)}
+.stage .name{display:block;margin-top:9px;font:400 15px/1.1 var(--serif);color:var(--muted)}
+.stage.current .name{color:var(--gold-hi)}
+.stage.passed .name{color:var(--gold)}
+.stage[aria-pressed="true"] .name{text-decoration:underline;text-underline-offset:4px;text-decoration-color:var(--gold)}
+.bar{margin:22px 0 6px;height:2px;background:rgba(205,174,114,.14);border-radius:2px;overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--gold-lo),var(--gold-hi));transition:width 1.2s ease}
+.bar-cap{display:flex;justify-content:space-between;font:400 12px var(--mono);color:var(--muted)}
+.lore{margin:18px 0 0;font:italic 400 18px/1.45 var(--serif);color:var(--text);min-height:3em}
+
+/* chart */
+.chart{margin:30px -18px 0;background:var(--bg)}
+.chart img{display:block;width:100%;height:auto}
+
+/* sections */
+section{margin-top:34px}
+section > h3{font:400 24px/1.15 var(--serif);margin:0 0 14px;color:var(--gold-hi)}
+section > h3 small{display:block;margin-top:4px;font:400 12px var(--mono);color:var(--muted)}
+
+/* big three */
+.three{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.card{border:1px solid var(--line);border-radius:14px;padding:14px 10px 12px;text-align:center;background:linear-gradient(180deg,var(--panel),var(--bg))}
+.card .g{font-size:26px;line-height:1;color:var(--gold)}
+.card .k{margin-top:8px;font-size:11.5px;color:var(--muted)}
+.card .v{margin-top:2px;font:500 19px/1.15 var(--serif);color:var(--text)}
+.card .sg{font-size:14px;color:var(--gold);margin-left:3px}
+.facts{margin-top:14px;display:flex;flex-direction:column;gap:6px;font-size:14px;color:var(--text)}
+.facts b{font-weight:500;color:var(--gold)}
+
+/* sky now */
+.asp{list-style:none;margin:0;padding:0;border-top:1px solid var(--line)}
+.asp li{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;padding:12px 0;border-bottom:1px solid var(--line)}
+.asp .t{color:var(--amethyst)}
+.asp .n{text-align:right;color:var(--text)}
+.asp .a{font-size:20px;color:var(--gold);text-align:center;min-width:28px}
+.asp .a small{display:block;font:400 10.5px var(--sans);color:var(--muted);margin-top:2px}
+.asp .p{font-family:var(--sym);margin-right:4px}
+.planets{display:grid;grid-template-columns:repeat(2,1fr);gap:4px 16px;margin-top:16px;font-size:13.5px}
+.planets div{display:flex;justify-content:space-between;color:var(--muted)}
+.planets span:last-child{font-family:var(--mono);font-size:12.5px;color:var(--amethyst)}
+.empty{color:var(--muted);font-size:14px}
+
+/* artifacts */
+.chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
+.chip{flex:0 0 auto;border:1px solid var(--gold);background:transparent;color:var(--gold);border-radius:999px;padding:6px 14px;font:400 13px var(--sans);cursor:pointer}
+.chip[aria-pressed="true"]{background:linear-gradient(90deg,var(--gold-lo),var(--gold-hi));color:#1A140C;border-color:transparent}
+.chip:focus-visible{outline:1px solid var(--gold-hi);outline-offset:2px}
+.vault{margin-top:14px;border:1px dashed var(--line);border-radius:14px;padding:22px 16px;text-align:center;color:var(--muted);font:italic 400 17px/1.45 var(--serif)}
+
+/* composer */
+.composer{position:fixed;left:0;right:0;bottom:0;padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px));background:linear-gradient(180deg,rgba(7,6,5,0),var(--bg) 35%)}
+.composer button{display:block;width:100%;max-width:428px;margin:0 auto;text-align:left;border:1px solid var(--line);background:var(--panel);color:var(--muted);border-radius:999px;padding:13px 18px;font:400 15px var(--sans);cursor:pointer}
+.composer button:focus-visible{outline:1px solid var(--gold);outline-offset:2px}
+
+.state{min-height:70vh;display:grid;place-items:center;text-align:center;font:italic 400 20px/1.5 var(--serif);color:var(--muted);padding:0 24px}
+[hidden]{display:none!important}
+@media (prefers-reduced-motion:reduce){.bar i{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <svg class="wordmark" viewBox="-1 1 32 16" role="img" aria-label="elix"><text x="0" y="12" dominant-baseline="central" font-family="'Courier Prime','Courier New',monospace" font-weight="700" font-size="9" fill="#CDAE72" fill-opacity=".85">elix</text><g transform="translate(21.06,10.29) rotate(26) scale(0.27)"><polygon points="-6,-0.8 -3,-10 2.2,-18 3.2,-9.5 5.6,-1.2" fill="#CDAE72" opacity="0.38"/><polyline points="-11,0.4 -5,1.7 1,2 7,1.3 11.5,-0.1" fill="none" stroke="#CDAE72" stroke-width="0.9"/><line x1="-6" y1="-0.8" x2="-3" y2="-10" stroke="#CDAE72" stroke-width="0.9"/><line x1="-3" y1="-10" x2="2.2" y2="-18" stroke="#CDAE72" stroke-width="0.9"/><line x1="2.2" y1="-18" x2="8.6" y2="-21.2" stroke="#CDAE72" stroke-width="0.9"/><line x1="5.6" y1="-1.2" x2="3.2" y2="-9.5" stroke="#CDAE72" stroke-width="0.9"/><line x1="3.2" y1="-9.5" x2="2.2" y2="-18" stroke="#CDAE72" stroke-width="0.9"/><circle cx="-11" cy="0.4" r="1.4" fill="#CDAE72"/><circle cx="-5" cy="1.7" r="1.1" fill="#CDAE72"/><circle cx="1" cy="2" r="1.4" fill="#CDAE72"/><circle cx="7" cy="1.3" r="1.1" fill="#CDAE72"/><circle cx="11.5" cy="-0.1" r="1.4" fill="#CDAE72"/><circle cx="-6" cy="-0.8" r="1.1" fill="#CDAE72"/><circle cx="-3" cy="-10" r="1.1" fill="#CDAE72"/><circle cx="5.6" cy="-1.2" r="1.1" fill="#CDAE72"/><circle cx="3.2" cy="-9.5" r="1.1" fill="#CDAE72"/><circle cx="2.2" cy="-18" r="1.4" fill="#F4E4BC"/><polygon points="8.60,-24.80 9.39,-21.99 12.20,-21.20 9.39,-20.41 8.60,-17.60 7.81,-20.41 5.00,-21.20 7.81,-21.99" fill="#F8ECC8" opacity="1.00"/></g></svg>
+    <svg class="flask" viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="fg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#D4AF37"/><stop offset="1" stop-color="#F4E4BC"/></linearGradient></defs><path d="M13 4h6M14 4v8.2a9 9 0 1 0 4 0V4" fill="none" stroke="url(#fg)" stroke-width="1.2" stroke-linecap="round"/><path d="M8.6 20.5a7.4 7.4 0 0 0 14.8 0c-2.4-1-4.8 1-7.4 0s-5-1-7.4 0z" fill="#3A1420" opacity=".9"/><circle cx="14" cy="17.5" r=".8" fill="#F4E4BC"/><circle cx="17.6" cy="15.2" r=".5" fill="#F4E4BC"/></svg>
+  </div>
+
+  <div id="state" class="state"></div>
+
+  <main id="app" hidden>
+    <div class="owner"><h1 id="owner"></h1><p id="born"></p></div>
+
+    <div class="opus">
+      <div class="opus-head"><h2 id="opusTitle"></h2><span id="since"></span></div>
+      <div class="track" id="track"></div>
+      <div class="bar"><i id="bar"></i></div>
+      <div class="bar-cap"><span id="barL"></span><span id="barR"></span></div>
+      <p class="lore" id="lore"></p>
+    </div>
+
+    <div class="chart" id="chartBox"><img id="chart" alt=""></div>
+
+    <section>
+      <h3 id="t3"></h3>
+      <div class="three" id="three"></div>
+      <div class="facts" id="facts"></div>
+    </section>
+
+    <section>
+      <h3 id="skyTitle"></h3>
+      <ul class="asp" id="asp"></ul>
+      <div class="planets" id="planets"></div>
+    </section>
+
+    <section>
+      <h3 id="vaultTitle"></h3>
+      <div class="chips" id="chips"></div>
+      <div class="vault" id="vault"></div>
+    </section>
+  </main>
+</div>
+<div class="composer" id="composer" hidden><button type="button" id="write"></button></div>
+
+<script>
+const TG = window.Telegram && window.Telegram.WebApp;
+const STAGES = ["nigredo","albedo","citrinitas","rubedo"];
+const L = {
+  ua:{
+    loading:"Лабораторія відчиняється…",
+    unauthorized:"Паспорт відкривається лише з бота elix.",
+    notfound:"Паспорт видається після знайомства з elix. Повернись у бот і почни з /start.",
+    failed:"Паспорт не завантажився. Закрий і відкрий його ще раз.",
+    opus:"Опус", since:"з", progress:"прогрес стадії",
+    stages:{nigredo:"Нігредо",albedo:"Альбедо",citrinitas:"Цитрінітас",rubedo:"Рубедо"},
+    lore:{
+      nigredo:"Темрява і холод. Те, що довго ховалося всередині, виходить назовні й розхитує старі опори. Це не кінець світу — це час прийняти неминуче й вистояти.",
+      albedo:"Місячне світло. Шум вщухає, осад опускається на дно, і вже видно, що справді твоє, а що було навіяне.",
+      citrinitas:"Ранкова зоря. Туман розсіюється, а думки знову належать тобі. Шлях видно — і перші рішення даються спокійно.",
+      rubedo:"Зеніт, повне Сонце. Досвід стає внутрішньою силою, а доля — не вироком, а матеріалом. Коло замикається, і спіраль веде далі — на вищий виток."
+    },
+    three:"Велика трійка", sun:"Сонце", moon:"Місяць", asc:"Асцендент", phase:"Місяць при народженні",
+    figures:"Фігури", born_phase:"Фаза Місяця",
+    sky:"Небо над тобою", skyEmpty:"Сьогодні точних транзитів до твоєї карти немає. Тиха погода.",
+    vault:"Колекція артефактів", all:"Усі",
+    vaultEmpty:"Кожна стадія залишає по собі артефакт. Твій перший з’явиться тут.",
+    write:"Розкажи, що в тебе на душі…",
+    your:{m:"твій",f:"твоя",n:"твоє"},
+    months:["січня","лютого","березня","квітня","травня","червня","липня","серпня","вересня","жовтня","листопада","грудня"],
+    signs:{Aries:"Овен",Taurus:"Телець",Gemini:"Близнюки",Cancer:"Рак",Leo:"Лев",Virgo:"Діва",Libra:"Терези",Scorpio:"Скорпіон",Sagittarius:"Стрілець",Capricorn:"Козеріг",Aquarius:"Водолій",Pisces:"Риби"},
+    planets:{sun:"Сонце",moon:"Місяць",mercury:"Меркурій",venus:"Венера",mars:"Марс",jupiter:"Юпітер",saturn:"Сатурн",uranus:"Уран",neptune:"Нептун",pluto:"Плутон",lilith:"Ліліт",north_node:"Північний вузол",south_node:"Південний вузол"},
+    aspects:{conjunction:"з’єднання",opposition:"опозиція",square:"квадрат",trine:"трин",sextile:"секстиль"},
+    unknownTime:"час невідомий"
+  },
+  en:{
+    loading:"Opening the laboratory…",
+    unauthorized:"The Passport opens only from the elix bot.",
+    notfound:"The Passport is issued once you’ve met elix. Go back to the bot and tap /start.",
+    failed:"The Passport didn’t load. Close it and open it again.",
+    opus:"Opus", since:"since", progress:"stage progress",
+    stages:{nigredo:"Nigredo",albedo:"Albedo",citrinitas:"Citrinitas",rubedo:"Rubedo"},
+    lore:{
+      nigredo:"Darkness and cold. What stayed hidden for years rises to the surface and loosens the old foundations. Not the end of the world — a time to accept the inevitable and hold steady.",
+      albedo:"Moonlight. The noise dies down, the sediment settles, and you can finally tell what is truly yours from what was borrowed.",
+      citrinitas:"The morning star. The fog lifts, and your thoughts belong to you again. The path is visible — and the first decisions come calmly.",
+      rubedo:"Zenith, the full Sun. Experience turns into inner strength, and fate becomes material rather than a sentence. The circle closes, and the spiral carries on — to a higher turn."
+    },
+    three:"The Big Three", sun:"Sun", moon:"Moon", asc:"Ascendant", phase:"Birth Moon",
+    figures:"Figures", born_phase:"Moon phase",
+    sky:"The sky above you", skyEmpty:"No exact transits to your chart today. Quiet weather.",
+    vault:"Artifact collection", all:"All",
+    vaultEmpty:"Every stage leaves an artifact behind. Your first will appear here.",
+    write:"Tell me what’s on your mind…",
+    your:{m:"your",f:"your",n:"your"},
+    months:["January","February","March","April","May","June","July","August","September","October","November","December"],
+    signs:{Aries:"Aries",Taurus:"Taurus",Gemini:"Gemini",Cancer:"Cancer",Leo:"Leo",Virgo:"Virgo",Libra:"Libra",Scorpio:"Scorpio",Sagittarius:"Sagittarius",Capricorn:"Capricorn",Aquarius:"Aquarius",Pisces:"Pisces"},
+    planets:{sun:"Sun",moon:"Moon",mercury:"Mercury",venus:"Venus",mars:"Mars",jupiter:"Jupiter",saturn:"Saturn",uranus:"Uranus",neptune:"Neptune",pluto:"Pluto",lilith:"Lilith",north_node:"North Node",south_node:"South Node"},
+    aspects:{conjunction:"conjunction",opposition:"opposition",square:"square",trine:"trine",sextile:"sextile"},
+    unknownTime:"time unknown"
+  }
+};
+const GENDER = {sun:"n",venus:"f",lilith:"f"};
+const PG = {sun:"☉",moon:"☽",mercury:"☿",venus:"♀",mars:"♂",jupiter:"♃",saturn:"♄",uranus:"♅",neptune:"♆",pluto:"♇",lilith:"⚸",north_node:"☊",south_node:"☋"};
+const ZG = {Aries:"♈",Taurus:"♉",Gemini:"♊",Cancer:"♋",Leo:"♌",Virgo:"♍",Libra:"♎",Scorpio:"♏",Sagittarius:"♐",Capricorn:"♑",Aquarius:"♒",Pisces:"♓"};
+const AG = {conjunction:"☌",opposition:"☍",square:"□",trine:"△",sextile:"⚹"};
+const VS = "\uFE0E";
+const ROMAN = ["I","II","III","IV","V","VI","VII","VIII","IX","X"];
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const g = c => `<span class="sym">${c}${VS}</span>`;
+
+function dropSVG(state){
+  const d = "M27 11c0 0-11 12.5-11 20a11 11 0 0 0 22 0c0-7.5-11-20-11-20z";
+  const fill = state === "future" ? "none" : "url(#dg)";
+  const op = state === "passed" ? .55 : 1;
+  const stroke = state === "future" ? `stroke="#CDAE72" stroke-width="1" stroke-opacity=".55"` : "";
+  return `<svg width="54" height="54" viewBox="0 0 54 54" aria-hidden="true"><defs><linearGradient id="dg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F4E4BC"/><stop offset="1" stop-color="#D4AF37"/></linearGradient></defs><path d="${d}" fill="${fill}" fill-opacity="${op}" ${stroke}/></svg>`;
+}
+
+function render(d){
+  const lang = d.language === "en" ? "en" : "ua";
+  const t = L[lang];
+  document.documentElement.lang = lang === "en" ? "en" : "uk";
+
+  $("owner").textContent = d.name || "";
+  const place = (d.birth_place || "").split(",")[0];
+  $("born").textContent = [d.birth_date, d.time_known ? d.birth_time : t.unknownTime, place].filter(Boolean).join(", ");
+
+  // Opus
+  const cur = Math.max(0, STAGES.indexOf(d.stage));
+  $("opusTitle").textContent = `${t.opus} ${ROMAN[(d.opus || 1) - 1] || d.opus}`;
+  if (d.stage_started){
+    const s = new Date(d.stage_started);
+    $("since").textContent = `${t.since} ${s.getDate()} ${t.months[s.getMonth()]}`;
+  }
+  const showLore = i => {
+    $("lore").textContent = t.lore[STAGES[i]];
+    document.querySelectorAll(".stage").forEach((b, k) => b.setAttribute("aria-pressed", k === i));
+  };
+  $("track").innerHTML = STAGES.map((s, i) => {
+    const st = i < cur ? "passed" : i === cur ? "current" : "future";
+    return `<button type="button" class="stage ${st}" aria-pressed="false"><span class="drop">${dropSVG(st)}</span><span class="name">${t.stages[s]}</span></button>`;
+  }).join("");
+  document.querySelectorAll(".stage").forEach((b, i) => b.addEventListener("click", () => showLore(i)));
+  showLore(cur);
+  const pr = Math.max(0, Math.min(100, Number(d.stage_progress) || 0));
+  $("barL").textContent = t.stages[STAGES[cur]];
+  $("barR").textContent = `${t.progress} ${pr}%`;
+  requestAnimationFrame(() => requestAnimationFrame(() => { $("bar").style.width = pr + "%"; }));
+
+  // Chart
+  if (d.chart_url){ $("chart").src = d.chart_url; $("chart").alt = `${t.three}: ${d.name || ""}`; }
+  else $("chartBox").hidden = true;
+
+  // Big three (unknown time: birth Moon phase instead of the Ascendant)
+  const ph = d.natal && d.natal.moon_phase;
+  const phaseName = ph ? (lang === "en" ? ph.name_en : ph.name_ua) : (d.moon_phase || "");
+  const cards = [[PG.sun, t.sun, d.sun_sign], [PG.moon, t.moon, d.moon_sign]];
+  if (d.time_known && d.asc_sign) cards.push(["AC", t.asc, d.asc_sign]);
+  else cards.push(["☾", t.phase, null, phaseName]);
+  $("t3").textContent = t.three;
+  $("three").innerHTML = cards.map(([gl, k, sign, text]) => `<div class="card"><div class="g">${gl === "AC" ? '<span style="font:500 20px var(--serif)">AC</span>' : g(gl)}</div><div class="k">${k}</div><div class="v">${sign ? esc(t.signs[sign] || sign) + `<span class="sg">${g(ZG[sign] || "")}</span>` : esc(text)}</div></div>`).join("");
+  const facts = [];
+  if (d.time_known && phaseName) facts.push(`<div><b>${t.born_phase}:</b> ${esc(phaseName)}</div>`);
+  const figs = (d.natal && d.natal.figures) || [];
+  if (figs.length) facts.push(`<div><b>${t.figures}:</b> ${figs.map(f => esc(lang === "en" ? f.name_en : f.name_ua)).join(", ")}</div>`);
+  $("facts").innerHTML = facts.join("");
+
+  // Sky now
+  const now = new Date();
+  $("skyTitle").innerHTML = `${t.sky}<small>${now.getDate()} ${t.months[now.getMonth()]}, ${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}</small>`;
+  const sky = d.sky_now;
+  const asp = (sky && sky.aspects) || [];
+  $("asp").innerHTML = asp.length ? asp.map(a => {
+    const your = t.your[GENDER[a.natal] || "m"];
+    return `<li><span class="t"><span class="p">${PG[a.transit] || ""}${VS}</span>${t.planets[a.transit] || a.transit}</span>`
+      + `<span class="a">${g(AG[a.aspect] || "·")}<small>${t.aspects[a.aspect] || a.aspect}</small></span>`
+      + `<span class="n">${your} ${t.planets[a.natal] || a.natal}<span class="p" style="margin:0 0 0 4px">${PG[a.natal] || ""}${VS}</span></span></li>`;
+  }).join("") : `<li style="display:block" class="empty">${t.skyEmpty}</li>`;
+  const order = ["sun","moon","mercury","venus","mars","jupiter","saturn","uranus","neptune","pluto","north_node","lilith"];
+  $("planets").innerHTML = sky && sky.planets ? order.filter(n => sky.planets[n]).map(n => {
+    const p = sky.planets[n];
+    const nm = n === "north_node" ? (lang === "en" ? "Node" : "Вузол") : t.planets[n];
+    return `<div><span>${g(PG[n])} ${nm}</span><span>${esc(p.degree_display)} ${g(ZG[p.sign] || "")}${p.retrograde ? " ℞" : ""}</span></div>`;
+  }).join("") : "";
+
+  // Artifacts (collection opens after the diploma; chips already work as a filter)
+  $("vaultTitle").textContent = t.vault;
+  const chipKeys = ["all", ...STAGES];
+  $("chips").innerHTML = chipKeys.map((k, i) => `<button type="button" class="chip" aria-pressed="${i === 0}">${k === "all" ? t.all : t.stages[k]}</button>`).join("");
+  document.querySelectorAll(".chip").forEach(c => c.addEventListener("click", () => {
+    document.querySelectorAll(".chip").forEach(x => x.setAttribute("aria-pressed", x === c));
+  }));
+  $("vault").textContent = t.vaultEmpty;
+
+  // Composer: back to the chat
+  $("write").textContent = t.write;
+  $("write").addEventListener("click", () => { if (TG && TG.close) TG.close(); });
+  $("composer").hidden = false;
+
+  $("state").hidden = true;
+  $("app").hidden = false;
+}
+
+async function load(){
+  const guess = TG && TG.initDataUnsafe && TG.initDataUnsafe.user && TG.initDataUnsafe.user.language_code === "en" ? "en" : "ua";
+  $("state").textContent = L[guess].loading;
+  if (TG){ try{ TG.ready(); TG.expand(); TG.setHeaderColor("#070605"); TG.setBackgroundColor("#070605"); }catch(e){} }
+  const q = new URLSearchParams(location.search);
+  let res;
+  try{
+    if (TG && TG.initData){
+      res = await fetch("/passport-data", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({init_data:TG.initData})});
+    } else if (q.get("user_id") && q.get("key")){
+      res = await fetch(`/test-passport-data?user_id=${encodeURIComponent(q.get("user_id"))}&key=${encodeURIComponent(q.get("key"))}`);
+    } else {
+      $("state").textContent = L[guess].unauthorized; return;
+    }
+    if (res.status === 401 || res.status === 403){ $("state").textContent = L[guess].unauthorized; return; }
+    if (res.status === 404){ $("state").textContent = L[guess].notfound; return; }
+    if (!res.ok) throw new Error(res.status);
+    render(await res.json());
+  }catch(e){
+    $("state").textContent = L[guess].failed;
+  }
+}
+load();
+</script>
+</body>
+</html>
