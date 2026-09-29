@@ -61,8 +61,8 @@ NATAL_ORBS = {
 }
 TRANSIT_ORB = 2  # flat orb for transit-to-natal aspects, matching Chronos's transit settings
 
-# ---- Chart rendering constants (Elix palette "Чорнильна безодня": ink-blue night, brass-gold) ----
-BG = "#0B0D22"            # ink-blue background (was pure black #050303)
+# ---- Chart rendering constants (Elix palette: warm near-black, antique gold) ----
+BG = "#070605"            # warm near-black (decided 29.09; was ink-blue #0B0D22)
 SIGN_COLORS = {
     "Aries": "#3A1420", "Leo": "#3A1420", "Sagittarius": "#3A1420",        # deep wine (fire)
     "Taurus": "#0B3B45", "Virgo": "#0B3B45", "Capricorn": "#0B3B45",       # deep forest (earth)
@@ -84,7 +84,7 @@ PLANET_GLYPHS = {
 }
 # Aspect styling: (core colour, facet highlight, dash, width, glitter density)
 # Major aspects = solid bordeaux "jewel" lines; soft / minor = dashed emerald or sapphire.
-# Tones lifted so they still read on the ink-blue ground (dark bordeaux vanished on it).
+# Tones lifted so they read on the dark ground (pure dark bordeaux vanishes on it).
 BORDEAUX = ("#A2465E", "#E39AAC")
 EMERALD = ("#3F8A8A", "#A3D3D0")
 SAPPHIRE = ("#5C6FC0", "#AFC0F2")
@@ -519,8 +519,7 @@ TRANSIT_TONES = {
     "amethyst": ("#B89CDB", "#8E7AB0"),   # cool violet - opposite gold on the colour wheel
     "copper": ("#D08A55", "#A26A40"),     # warm cognac copper
 }
-TRANSIT_TONES["teal"] = ("#8ED1CF", "#5E9E9C")   # "небо зараз" colour, same as the Passport
-TRANSIT_TONE, TRANSIT_TONE_SOFT = TRANSIT_TONES["teal"]
+TRANSIT_TONE, TRANSIT_TONE_SOFT = TRANSIT_TONES["amethyst"]   # transits = amethyst; turquoise is not used anywhere
 TRANSIT_TIGHT_ORB = 1.0     # transit chart shows only the tightest contacts...
 TRANSIT_MAX_ASPECTS = 6     # ...and at most this many, closest first
 
@@ -700,7 +699,7 @@ def find_figures(aspect_list, present):
 def render_chart_svg(natal_data, transit_data=None):
     """
     Renders the natal chart in the agreed dark-jewel palette:
-    black background, true-arc zodiac band in element tones, antique-gold
+    warm near-black background (#070605), true-arc zodiac band in element tones, antique-gold
     linework, planets on ONE ring (Chronos-style fan-out so nothing overlaps),
     bordeaux jewel lines for major aspects and dashed emerald / sapphire
     glitter lines for soft & minor ones, all passing UNDER a young-moon
