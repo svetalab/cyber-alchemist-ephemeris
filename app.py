@@ -1366,7 +1366,12 @@ def sky_now(f):
             if key not in seen:
                 seen.add(key)
                 figures.append({"name_ua": fig["name_ua"], "name_en": fig["name_en"], "points": fig["points"]})
-        extras = {"figures": figures, "moon_phase": natal.get("birth_moon_phase")}
+        city = str(f.get("birth_place") or "").split(",")[0].strip()
+        natal["owner_name"] = f.get("name") or ""
+        natal["owner_details"] = " · ".join(x for x in (f.get("birth_date"), f.get("birth_time") if tk else None, city) if x)
+        natal["lang"] = f.get("language", "ua")
+        extras = {"figures": figures, "moon_phase": natal.get("birth_moon_phase"),
+                  "chart_svg": render_chart_svg(natal)}   # live chart: always the current palette
         t = build_transit_data(natal["planets"], lang=f.get("language", "ua"))
         sky = {
             "planets": {n: {"sign": p["sign"], "degree_display": p["degree_display"],
