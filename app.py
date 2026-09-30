@@ -1417,7 +1417,7 @@ def sky_now(f):
         natal["owner_name"] = f.get("name") or ""
         natal["owner_details"] = " · ".join(x for x in (f.get("birth_date"), f.get("birth_time") if tk else None, city) if x)
         natal["lang"] = f.get("language", "ua")
-        extras = {"figures": figures, "moon_phase": natal.get("birth_moon_phase"),
+        extras = {"figures": figures, "moon_phase": natal.get("birth_moon_phase"), "moon_range": natal.get("moon_range"),
                   "chart_svg": render_chart_svg(natal, animate=True)}   # live chart: always the current palette
         t = build_transit_data(natal["planets"], lang=f.get("language", "ua"))
         sky = {

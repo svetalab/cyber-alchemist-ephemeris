@@ -71,6 +71,8 @@ section > h3 small{display:block;margin-top:4px;font:400 12px var(--mono);color:
 .card .k{margin-top:8px;font-size:11.5px;color:var(--muted)}
 .card .v{margin-top:2px;font:500 19px/1.15 var(--serif);color:var(--text)}
 .card .sg{font-size:14px;color:var(--gold);margin-left:3px}
+.card .to{display:block}
+.card .ar{color:var(--gold);font-family:var(--sans);font-size:.8em;margin-right:2px}
 .facts{margin-top:14px;display:flex;flex-direction:column;gap:6px;font-size:14px;color:var(--text)}
 .facts b{font-weight:500;color:var(--gold)}
 
@@ -415,11 +417,15 @@ function render(d){
   // Big three (unknown time: birth Moon phase instead of the Ascendant)
   const ph = d.natal && d.natal.moon_phase;
   const phaseName = ph ? (lang === "en" ? ph.name_en : ph.name_ua) : (d.moon_phase || "");
-  const cards = [[PG.sun, t.sun, d.sun_sign], [PG.moon, t.moon, d.moon_sign]];
+  // unknown time: if the Moon changed sign during the birth day, show both signs
+  const mr = d.natal && d.natal.moon_range;
+  const moonVal = (!d.time_known && mr && mr.signs && mr.signs.length === 2) ? mr.signs : d.moon_sign;
+  const cards = [[PG.sun, t.sun, d.sun_sign], [PG.moon, t.moon, moonVal]];
   if (d.time_known && d.asc_sign) cards.push(["AC", t.asc, d.asc_sign]);
   else cards.push(["☾", t.phase, null, phaseName]);
+  const signHTML = s => esc(t.signs[s] || s) + `<span class="sg">${g(ZG[s] || "")}</span>`;
   $("t3").textContent = t.three;
-  $("three").innerHTML = cards.map(([gl, k, sign, text]) => `<div class="card"><div class="g">${gl === "AC" ? '<span style="font:500 20px var(--serif)">AC</span>' : g(gl)}</div><div class="k">${k}</div><div class="v">${sign ? esc(t.signs[sign] || sign) + `<span class="sg">${g(ZG[sign] || "")}</span>` : esc(text)}</div></div>`).join("");
+  $("three").innerHTML = cards.map(([gl, k, sign, text]) => `<div class="card"><div class="g">${gl === "AC" ? '<span style="font:500 20px var(--serif)">AC</span>' : g(gl)}</div><div class="k">${k}</div><div class="v">${Array.isArray(sign) ? signHTML(sign[0]) + `<span class="to"><span class="ar">→</span> ${signHTML(sign[1])}</span>` : sign ? signHTML(sign) : esc(text)}</div></div>`).join("");
   const facts = [];
   if (d.time_known && phaseName) facts.push(`<div><b>${t.born_phase}:</b> ${esc(phaseName)}</div>`);
   const figs = (d.natal && d.natal.figures) || [];
