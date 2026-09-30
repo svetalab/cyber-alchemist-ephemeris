@@ -111,6 +111,34 @@ section > h3 small{display:block;margin-top:4px;font:400 12px var(--mono);color:
 .tabs button:focus-visible{outline:1px solid var(--gold);outline-offset:2px;border-radius:8px}
 .composer{bottom:calc(62px + env(safe-area-inset-bottom,0px))!important;background:linear-gradient(180deg,rgba(7,6,5,0),var(--bg) 45%)!important}
 .wrap{padding-bottom:170px}
+
+/* chart reveal (Карта tab): rings -> signs -> houses -> planets -> aspects -> the Sun ignites */
+.chart svg.play .an-em{animation:anFade .9s ease both}
+.chart svg.play .an-ring circle{stroke-dasharray:1;animation:anDraw 1.3s ease-out .1s both}
+.chart svg.play .an-z{animation:anFade .5s ease both;animation-delay:calc(.5s + var(--i) * .09s)}
+.chart svg.play .an-h line{stroke-dasharray:1;animation:anDraw .6s ease-out both;animation-delay:calc(1.2s + var(--i) * .06s)}
+.chart svg.play .an-lab{animation:anFade .8s ease 2.1s both}
+.chart svg.play .an-p{transform-box:fill-box;transform-origin:center;animation:anPop .55s cubic-bezier(.2,.9,.3,1.3) both;animation-delay:calc(2.3s + var(--i) * .13s)}
+.chart svg.play .an-a{animation:anFade .35s ease both;animation-delay:calc(4.2s + min(var(--i), 18) * .07s)}
+.chart svg.play .an-a line[pathLength]{stroke-dasharray:1;animation:anDraw .8s ease-out both;animation-delay:calc(4.2s + min(var(--i), 18) * .07s)}
+.chart svg.play .an-fig{animation:anFade 1.2s ease 5.3s both}
+.chart svg.play .an-marks{animation:anFade .6s ease 5.7s both}
+.chart svg .an-sunglow{opacity:.45;transform-box:fill-box;transform-origin:center}
+.chart svg.play .an-sunglow{animation:anIgnite 1.6s ease-out 6.3s both, anBreathe 4s ease-in-out 7.9s infinite alternate}
+@keyframes anFade{from{opacity:0}to{opacity:1}}
+@keyframes anDraw{from{stroke-dashoffset:1}to{stroke-dashoffset:0}}
+@keyframes anPop{from{opacity:0;transform:scale(.4)}to{opacity:1;transform:scale(1)}}
+@keyframes anIgnite{0%{opacity:0;transform:scale(.2)}45%{opacity:1;transform:scale(1.9)}100%{opacity:.75;transform:scale(1)}}
+@keyframes anBreathe{from{opacity:.75;transform:scale(1)}to{opacity:.4;transform:scale(.85)}}
+.chart{cursor:pointer}
+@media (prefers-reduced-motion:reduce){.chart svg.play *{animation:none!important}}
+
+/* layout fixes: nothing hides under the bottom bar, chips never cut, chart centred */
+.wrap{padding-bottom:calc(200px + env(safe-area-inset-bottom,0px))!important}
+.chips{flex-wrap:wrap;overflow:visible}
+.chip{padding:6px 13px;font-size:13px}
+.panel[data-tab="chart"]:not([hidden]){display:flex;align-items:center;min-height:calc(100vh - 330px);min-height:calc(100dvh - 330px)}
+.panel[data-tab="chart"] .chart{width:calc(100% + 36px)}
 [hidden]{display:none!important}
 @media (prefers-reduced-motion:reduce){.bar i{transition:none}}
 </style>
@@ -248,6 +276,17 @@ function dropSVG(state){
   return `<svg width="54" height="54" viewBox="0 0 54 54" aria-hidden="true"><defs><linearGradient id="dg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F4E4BC"/><stop offset="1" stop-color="#D4AF37"/></linearGradient></defs><path d="${d}" fill="${fill}" fill-opacity="${op}" ${stroke}/></svg>`;
 }
 
+
+let revealed = false, sunTimer = null;
+function playReveal(){
+  const svg = document.querySelector("#chartBox svg");
+  if (!svg) return;
+  svg.classList.remove("play"); void svg.getBoundingClientRect(); svg.classList.add("play");
+  clearTimeout(sunTimer);
+  if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches){
+    sunTimer = setTimeout(() => { try{ TG && TG.HapticFeedback && TG.HapticFeedback.impactOccurred("medium"); }catch(e){} }, 6500);
+  }
+}
 function render(d){
   const lang = d.language === "en" ? "en" : "ua";
   const t = L[lang];
@@ -284,6 +323,7 @@ function render(d){
   if (svg){ $("chartBox").innerHTML = svg; const el = $("chartBox").querySelector("svg"); if (el){ el.setAttribute("role","img"); el.setAttribute("aria-label", d.name || "chart"); } }
   else if (d.chart_url){ $("chart").src = d.chart_url; $("chart").alt = d.name || ""; }
   else $("chartBox").hidden = true;
+  $("chartBox").addEventListener("click", playReveal);
 
   // Big three (unknown time: birth Moon phase instead of the Ascendant)
   const ph = d.natal && d.natal.moon_phase;
@@ -339,6 +379,7 @@ function render(d){
     document.querySelectorAll(".tabs button").forEach(x => x.setAttribute("aria-pressed", x === b));
     document.querySelectorAll(".panel").forEach(p => p.hidden = p.dataset.tab !== b.dataset.go);
     window.scrollTo(0, 0);
+    if (b.dataset.go === "chart" && !revealed){ revealed = true; playReveal(); }
   }));
   $("state").hidden = true;
   $("app").hidden = false;
