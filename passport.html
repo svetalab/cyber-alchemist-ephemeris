@@ -197,8 +197,17 @@ section > h3 small{display:block;margin-top:4px;font:400 12px var(--mono);color:
 
 .more{background:none;border:0;padding:0 2px;margin-left:2px;color:var(--gold);font:inherit;font-size:.92em;text-decoration:underline dotted;text-underline-offset:3px;cursor:pointer}
 .more:focus-visible{outline:1px solid var(--gold);outline-offset:2px;border-radius:3px}
-[hidden]{display:none!important}
 @media (prefers-reduced-motion:reduce){.bar i{transition:none}}
+/* download the chart: appears once the reveal has finished */
+.panel[data-tab="chart"]:not([hidden]){flex-direction:column;justify-content:center}
+.dl{display:inline-flex;align-items:center;gap:8px;margin:18px auto 0;padding:9px 20px 9px 16px;border:1px solid rgba(205,174,114,.55);border-radius:999px;background:transparent;color:var(--gold-hi);font:400 14px var(--sans);letter-spacing:.01em;cursor:pointer;transition:opacity .8s ease,border-color .2s ease,background .2s ease}
+.dl svg{width:16px;height:16px;fill:none;stroke:var(--gold);stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round}
+.dl:hover{border-color:var(--gold);background:rgba(205,174,114,.06)}
+.dl:active{background:rgba(205,174,114,.12)}
+.dl:focus-visible{outline:1px solid var(--gold-hi);outline-offset:3px}
+.dl.wait{opacity:0;pointer-events:none}
+@media (prefers-reduced-motion:reduce){.dl{transition:none}}
+[hidden]{display:none!important}
 </style>
 </head>
 <body>
@@ -230,6 +239,7 @@ section > h3 small{display:block;margin-top:4px;font:400 12px var(--mono);color:
     </div>
     <div class="panel" data-tab="chart" hidden>
       <div class="chart" id="chartBox"><img id="chart" alt=""></div>
+      <button type="button" class="dl wait" id="dl" hidden><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2.5v8M4.5 7.5 8 11l3.5-3.5M3 13.5h10"/></svg><span id="dlText"></span></button>
     </div>
 
     <div class="panel" data-tab="sky" hidden>
@@ -286,7 +296,7 @@ const L = {
     signs:{Aries:"Овен",Taurus:"Телець",Gemini:"Близнюки",Cancer:"Рак",Leo:"Лев",Virgo:"Діва",Libra:"Терези",Scorpio:"Скорпіон",Sagittarius:"Стрілець",Capricorn:"Козеріг",Aquarius:"Водолій",Pisces:"Риби"},
     planets:{sun:"Сонце",moon:"Місяць",mercury:"Меркурій",venus:"Венера",mars:"Марс",jupiter:"Юпітер",saturn:"Сатурн",uranus:"Уран",neptune:"Нептун",pluto:"Плутон",lilith:"Ліліт",north_node:"Північний вузол",south_node:"Південний вузол"},
     aspects:{conjunction:"з’єднання",opposition:"опозиція",square:"квадрат",trine:"трин",sextile:"секстиль"},
-    unknownTime:"час невідомий"
+    unknownTime:"час невідомий", download:"Завантажити карту"
   },
   en:{
     loading:"Opening the laboratory…",
@@ -313,7 +323,7 @@ const L = {
     signs:{Aries:"Aries",Taurus:"Taurus",Gemini:"Gemini",Cancer:"Cancer",Leo:"Leo",Virgo:"Virgo",Libra:"Libra",Scorpio:"Scorpio",Sagittarius:"Sagittarius",Capricorn:"Capricorn",Aquarius:"Aquarius",Pisces:"Pisces"},
     planets:{sun:"Sun",moon:"Moon",mercury:"Mercury",venus:"Venus",mars:"Mars",jupiter:"Jupiter",saturn:"Saturn",uranus:"Uranus",neptune:"Neptune",pluto:"Pluto",lilith:"Lilith",north_node:"North Node",south_node:"South Node"},
     aspects:{conjunction:"conjunction",opposition:"opposition",square:"square",trine:"trine",sextile:"sextile"},
-    unknownTime:"time unknown"
+    unknownTime:"time unknown", download:"Download chart"
   }
 };
 const GENDER = {sun:"n",venus:"f",lilith:"f"};
@@ -335,10 +345,14 @@ function dropSVG(state){
 }
 
 
-let revealed = false, sunTimer = null;
+let revealed = false, sunTimer = null, dlTimer = null;
+function showDownload(){ const b = $("dl"); if (!b.hidden) b.classList.remove("wait"); }
 function playReveal(){
   const svg = document.querySelector("#chartBox svg");
-  if (!svg) return;
+  if (!svg){ showDownload(); return; }
+  clearTimeout(dlTimer);
+  const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (still) showDownload(); else dlTimer = setTimeout(showDownload, 7600);
   svg.classList.remove("play"); void svg.getBoundingClientRect(); svg.classList.add("play");
   clearTimeout(sunTimer);
   if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches){
@@ -382,6 +396,21 @@ function render(d){
   else if (d.chart_url){ $("chart").src = d.chart_url; $("chart").alt = d.name || ""; }
   else $("chartBox").hidden = true;
   $("chartBox").addEventListener("click", playReveal);
+
+  // Download: the PNG twin of chart_url (Cloudinary keeps the same path with .png)
+  if (d.chart_url){
+    const png = String(d.chart_url).replace(/\.svg(\?.*)?$/i, ".png$1");
+    $("dlText").textContent = t.download;
+    $("dl").hidden = false;
+    $("dl").addEventListener("click", () => {
+      const file = "elix-chart.png";
+      try{
+        if (TG && TG.downloadFile && TG.isVersionAtLeast && TG.isVersionAtLeast("8.0")){ TG.downloadFile({url: png, file_name: file}); return; }
+      }catch(e){}
+      // outside Telegram (or an old app): Cloudinary sends it as a file instead of opening it
+      window.open(png.replace("/upload/", "/upload/fl_attachment/"), "_blank");
+    });
+  }
 
   // Big three (unknown time: birth Moon phase instead of the Ascendant)
   const ph = d.natal && d.natal.moon_phase;
