@@ -135,10 +135,64 @@ section > h3 small{display:block;margin-top:4px;font:400 12px var(--mono);color:
 
 /* layout fixes: nothing hides under the bottom bar, chips never cut, chart centred */
 .wrap{padding-bottom:calc(200px + env(safe-area-inset-bottom,0px))!important}
-.chips{flex-wrap:wrap;overflow:visible}
-.chip{padding:6px 13px;font-size:13px}
 .panel[data-tab="chart"]:not([hidden]){display:flex;align-items:center;min-height:calc(100vh - 330px);min-height:calc(100dvh - 330px)}
 .panel[data-tab="chart"] .chart{width:calc(100% + 36px)}
+
+/* Opus tab fits one screen: tighter rhythm, compact cards */
+.top{margin-bottom:14px}
+.owner h1{font-size:28px}
+.owner p{margin-top:4px;font-size:12.5px}
+.opus{margin:16px 0 0;padding:14px 0 0}
+.opus-head{margin-bottom:10px}
+.drop{width:46px;height:46px}
+.drop svg{width:42px;height:42px}
+.track::before{top:23px}
+.stage .name{margin-top:6px;font-size:14px}
+.bar{margin:14px 0 4px}
+.lore{margin:10px 0 0;font-size:16px;line-height:1.4;min-height:0}
+.panel[data-tab="opus"] section{margin-top:20px}
+.panel[data-tab="opus"] section > h3{font-size:20px;margin-bottom:10px}
+.card{padding:10px 6px 9px;border-radius:12px}
+.card .g{font-size:20px}
+.card .k{margin-top:5px;font-size:11px}
+.card .v{font-size:17px}
+.facts{margin-top:10px;font-size:13.5px;gap:3px}
+
+
+/* Opus: medium sizes + the free height is shared between blocks, so any phone looks full, never cramped */
+.owner h1{font-size:31px}
+.owner p{margin-top:6px;font-size:13px}
+.drop{width:50px;height:50px}
+.drop svg{width:48px;height:48px}
+.track::before{top:25px}
+.stage .name{margin-top:8px;font-size:15px}
+.lore{font-size:17px;line-height:1.45}
+.panel[data-tab="opus"] section > h3{font-size:22px;margin-bottom:12px}
+.card{padding:13px 8px 11px}
+.card .g{font-size:23px}
+.card .k{margin-top:6px;font-size:11.5px}
+.card .v{font-size:18px}
+.facts{margin-top:12px;font-size:14px;gap:5px}
+.panel[data-tab="opus"]:not([hidden]){display:flex;flex-direction:column;justify-content:space-between;min-height:calc(100vh - 245px);min-height:calc(100dvh - 245px)}
+.panel[data-tab="opus"] > *{margin-top:0}
+.panel[data-tab="opus"] .opus{margin:0}
+
+@media (max-height:740px){
+  .owner h1{font-size:27px}.owner p{font-size:12.5px;margin-top:3px}
+  .drop{width:44px;height:44px}.drop svg{width:40px;height:40px}.track::before{top:22px}
+  .stage .name{font-size:14px;margin-top:5px}.lore{font-size:15.5px}
+  .panel[data-tab="opus"] section > h3{font-size:19px;margin-bottom:8px}
+  .card{padding:9px 6px 8px}.card .g{font-size:19px}.card .k{margin-top:4px}.card .v{font-size:16px}
+  .facts{margin-top:8px;font-size:13px;gap:2px}
+}
+
+/* collection filter: stage signs (the same ● ○ ◐ ◉ elix uses when a stage changes), gold underline on the chosen one */
+.chips{display:grid;grid-template-columns:repeat(5,1fr);gap:0;overflow:visible;border-bottom:1px solid var(--line)}
+.chip{border:0;border-radius:0;background:none;padding:6px 0 9px;display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--muted);font:400 12px var(--sans);position:relative;white-space:nowrap}
+.chip .sgn{font-size:19px;line-height:1;color:var(--gold);opacity:.55;font-family:var(--sym)}
+.chip[aria-pressed="true"]{background:none;color:var(--gold-hi)}
+.chip[aria-pressed="true"] .sgn{opacity:1;text-shadow:0 0 10px rgba(212,175,55,.45)}
+.chip[aria-pressed="true"]::after{content:"";position:absolute;left:18%;right:18%;bottom:-1px;height:2px;border-radius:2px;background:linear-gradient(90deg,var(--gold-lo),var(--gold-hi))}
 [hidden]{display:none!important}
 @media (prefers-reduced-motion:reduce){.bar i{transition:none}}
 </style>
@@ -360,7 +414,7 @@ function render(d){
   // Artifacts (collection opens after the diploma; chips already work as a filter)
   $("vaultTitle").textContent = t.vault;
   const chipKeys = ["all", ...STAGES];
-  $("chips").innerHTML = chipKeys.map((k, i) => `<button type="button" class="chip" aria-pressed="${i === 0}">${k === "all" ? t.all : t.stages[k]}</button>`).join("");
+  $("chips").innerHTML = chipKeys.map((k, i) => `<button type="button" class="chip" aria-pressed="${i === 0}"><span class="sgn">${({all:"✦",nigredo:"●",albedo:"○",citrinitas:"◐",rubedo:"◉"})[k]}\uFE0E</span>${k === "all" ? t.all : t.stages[k]}</button>`).join("");
   document.querySelectorAll(".chip").forEach(c => c.addEventListener("click", () => {
     document.querySelectorAll(".chip").forEach(x => x.setAttribute("aria-pressed", x === c));
   }));
