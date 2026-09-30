@@ -973,13 +973,17 @@ def render_chart_svg(natal_data, transit_data=None, animate=False):
                   f'opacity="0.4" stroke-dasharray="0.25,1.35"/>')
     # figure edges stay unbroken: they cross the emblem disc (still UNDER the moon itself),
     # so a nodal T-square base or any opposition through the centre reads as one closed line
+    parts.append(_gc)
     if fig_lines:
+        parts.append(_go("an-cut"))
         parts.append(f'<clipPath id="emblemClip"><circle cx="{cx}" cy="{cy}" r="22.5"/></clipPath><g clip-path="url(#emblemClip)">')
         for x1, y1, x2, y2, core, facet, width in fig_lines:
             seg = f'x1="{x1:.2f}" y1="{y1:.2f}" x2="{x2:.2f}" y2="{y2:.2f}"'
             parts.append(f'<line {seg} stroke="{core}" stroke-width="{width}" opacity="0.8"/>')
             parts.append(f'<line {seg} stroke="{facet}" stroke-width="{width * 0.28:.2f}" opacity="0.35"/>')
         parts.append('</g>')
+        parts.append(_gc)
+    parts.append(_go("an-em"))
     R, R2 = 10.5, 12.2  # outer lit edge, inner shadow edge -> a slender waxing crescent
     crescent = (f'M0,{-R} A{R},{R} 0 0,1 0,{R} A{R2},{R2} 0 0,0 0,{-R} Z')
     moon_tf = f'translate({cx + 2.2},{cy}) rotate(-28)'
