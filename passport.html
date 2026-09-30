@@ -193,6 +193,9 @@ section > h3 small{display:block;margin-top:4px;font:400 12px var(--mono);color:
 .chip[aria-pressed="true"]{background:none;color:var(--gold-hi)}
 .chip[aria-pressed="true"] .sgn{opacity:1;text-shadow:0 0 10px rgba(212,175,55,.45)}
 .chip[aria-pressed="true"]::after{content:"";position:absolute;left:18%;right:18%;bottom:-1px;height:2px;border-radius:2px;background:linear-gradient(90deg,var(--gold-lo),var(--gold-hi))}
+
+.more{background:none;border:0;padding:0 2px;margin-left:2px;color:var(--gold);font:inherit;font-size:.92em;text-decoration:underline dotted;text-underline-offset:3px;cursor:pointer}
+.more:focus-visible{outline:1px solid var(--gold);outline-offset:2px;border-radius:3px}
 [hidden]{display:none!important}
 @media (prefers-reduced-motion:reduce){.bar i{transition:none}}
 </style>
@@ -390,8 +393,15 @@ function render(d){
   const facts = [];
   if (d.time_known && phaseName) facts.push(`<div><b>${t.born_phase}:</b> ${esc(phaseName)}</div>`);
   const figs = (d.natal && d.natal.figures) || [];
-  if (figs.length) facts.push(`<div><b>${t.figures}:</b> ${[...new Set(figs.map(f => lang === "en" ? f.name_en : f.name_ua))].map(esc).join(", ")}</div>`);
+  const figNames = [...new Set(figs.map(f => lang === "en" ? f.name_en : f.name_ua))].map(esc);
+  if (figNames.length){
+    const shown = figNames.slice(0, 3).join(", ");
+    const more = figNames.length - 3;
+    facts.push(`<div id="figLine"><b>${t.figures}:</b> ${shown}${more > 0 ? ` <button type="button" class="more" id="figMore">${lang === "en" ? "+" + more + " more" : "ще " + more}</button>` : ""}</div>`);
+  }
   $("facts").innerHTML = facts.join("");
+  const fm = $("figMore");
+  if (fm) fm.addEventListener("click", () => { $("figLine").innerHTML = `<b>${t.figures}:</b> ${figNames.join(", ")}`; });
 
   // Sky now
   const now = new Date();
